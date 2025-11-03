@@ -1,0 +1,2254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <title>Railyard Negotiation Game</title>
+  <style>
+    :root {
+      --bg-900: #02040a;
+      --bg-800: #050b16;
+      --panel: rgba(6, 12, 22, 0.94);
+      --panel-soft: rgba(10, 18, 32, 0.78);
+      --border: rgba(94, 234, 212, 0.42);
+      --border-faint: rgba(94, 234, 212, 0.18);
+      --accent: #5ef3b6;
+      --accent-soft: rgba(94, 243, 182, 0.16);
+      --danger: #fb7185;
+      --success: #34d399;
+      --warning: #facc15;
+      --muted: #94a3b8;
+      --muted-soft: rgba(148, 163, 184, 0.28);
+      --text: #e2e8f0;
+      --text-soft: rgba(226, 232, 240, 0.78);
+      --font: 'Space Grotesk', 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+      --mono: 'IBM Plex Mono', 'Space Mono', 'SFMono-Regular', ui-monospace, monospace;
+      --rail-glow: rgba(94, 234, 212, 0.16);
+      --train-shadow: rgba(4, 12, 24, 0.85);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font);
+      background: radial-gradient(circle at 18% 12%, rgba(46, 196, 182, 0.24) 0%, rgba(12, 42, 66, 0.42) 32%, var(--bg-800) 58%, var(--bg-900) 100%);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      padding: clamp(12px, 3vw, 24px);
+      position: relative;
+      overflow-x: hidden;
+      color-scheme: dark;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background:
+        repeating-linear-gradient(
+          0deg,
+          rgba(94, 243, 182, 0.04) 0px,
+          rgba(94, 243, 182, 0.04) 1px,
+          transparent 1px,
+          transparent 3px
+        );
+      mix-blend-mode: soft-light;
+      opacity: 0.55;
+      z-index: 0;
+    }
+
+    body::after {
+      content: '';
+      position: fixed;
+      inset: -20%;
+      pointer-events: none;
+      background: radial-gradient(circle at center, transparent 0%, rgba(2, 6, 12, 0.82) 78%);
+      mix-blend-mode: multiply;
+      opacity: 0.9;
+      z-index: 0;
+    }
+
+    .app {
+      width: min(1200px, 100%);
+      display: flex;
+      flex-direction: column;
+      gap: clamp(12px, 2vw, 20px);
+      position: relative;
+      z-index: 1;
+    }
+
+    .hero {
+      background: linear-gradient(135deg, rgba(96, 165, 250, 0.22), rgba(15, 118, 110, 0.18)) padding-box,
+                  linear-gradient(135deg, rgba(96, 165, 250, 0.5), rgba(15, 118, 110, 0.3)) border-box;
+      border: 1px solid transparent;
+      border-radius: 18px;
+      padding: clamp(18px, 3vw, 26px);
+      box-shadow: 0 20px 45px rgba(8, 14, 26, 0.45);
+      display: grid;
+      gap: 10px;
+    }
+
+    .hero h1 {
+      font-size: clamp(1.6rem, 5vw, 2.3rem);
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 0.5rem;
+    }
+
+    .hero p {
+      color: var(--text-soft);
+      font-size: clamp(0.9rem, 2.3vw, 1rem);
+      line-height: 1.55;
+      max-width: 72ch;
+    }
+
+    .layout {
+      display: flex;
+      flex-direction: column;
+      gap: clamp(12px, 2vw, 20px);
+    }
+
+    .grid-panel,
+    .chat-panel {
+      background: var(--panel);
+      border-radius: 18px;
+      border: 1px solid var(--border-faint);
+      box-shadow: 0 14px 35px rgba(6, 12, 25, 0.55);
+      padding: clamp(14px, 2.5vw, 20px);
+      display: flex;
+      flex-direction: column;
+      gap: clamp(14px, 2vw, 18px);
+    }
+
+    .status-bar {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+      gap: clamp(8px, 2vw, 14px);
+    }
+
+    .status-item {
+      background: rgba(10, 18, 31, 0.72);
+      border-radius: 14px;
+      border: 1px solid rgba(96, 165, 250, 0.12);
+      padding: 12px;
+      display: grid;
+      gap: 6px;
+      min-height: 72px;
+    }
+
+    .status-label {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--muted);
+    }
+
+    .status-value {
+      font-family: var(--mono);
+      font-size: clamp(1.05rem, 3vw, 1.28rem);
+      font-weight: 600;
+      color: var(--accent);
+      text-shadow: 0 0 12px rgba(96, 165, 250, 0.35);
+    }
+
+    .grid-wrapper {
+      position: relative;
+      padding: clamp(10px, 1.8vw, 16px);
+      border-radius: 16px;
+      background:
+        linear-gradient(160deg, rgba(96, 165, 250, 0.2), transparent 45%) border-box,
+        linear-gradient(160deg, rgba(15, 118, 110, 0.18), transparent 50%) border-box,
+        rgba(7, 13, 24, 0.92) padding-box;
+      border: 1px solid rgba(96, 165, 250, 0.15);
+      overflow: hidden;
+    }
+
+    .grid-wrapper::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at center, rgba(96, 165, 250, 0.08), transparent 60%);
+      pointer-events: none;
+      mix-blend-mode: screen;
+    }
+
+    .grid {
+      position: relative;
+      display: grid;
+      grid-template-columns: repeat(9, minmax(0, 1fr));
+      gap: clamp(5px, 1.2vw, 8px);
+      min-height: clamp(280px, 55vw, 420px);
+    }
+
+    .cell {
+      position: relative;
+      aspect-ratio: 1;
+      border-radius: 14px;
+      background:
+        linear-gradient(135deg, rgba(15, 118, 110, 0.12), rgba(2, 6, 16, 0.8)),
+        radial-gradient(circle at 12% 12%, rgba(96, 165, 250, 0.25), transparent 56%);
+      border: 1px solid rgba(96, 165, 250, 0.1);
+      overflow: hidden;
+      transition: transform 0.25s ease, border-color 0.25s ease;
+    }
+
+    .cell::before {
+      content: '';
+      position: absolute;
+      inset: 6px;
+      border-radius: 12px;
+      background:
+        repeating-linear-gradient(90deg, rgba(15, 118, 110, 0.12) 0px, rgba(15, 118, 110, 0.12) 3px, transparent 3px, transparent 10px),
+        linear-gradient(180deg, transparent 30%, rgba(255, 255, 255, 0.06) 32%, rgba(255, 255, 255, 0.06) 68%, transparent 70%);
+      opacity: 0.55;
+      pointer-events: none;
+      mix-blend-mode: screen;
+    }
+
+    .cell.has-entity {
+      border-color: rgba(96, 165, 250, 0.45);
+      box-shadow: 0 0 18px rgba(96, 165, 250, 0.26);
+      transform: translateY(-1px);
+    }
+
+    .cell .entity-icon {
+      position: absolute;
+      inset: 12%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: clamp(1.2rem, 4vw, 1.6rem);
+      color: var(--text);
+      filter: drop-shadow(0 0 6px rgba(96, 165, 250, 0.35));
+      z-index: 12;
+    }
+
+    .track {
+      position: absolute;
+      pointer-events: none;
+      z-index: 5;
+      opacity: 0.85;
+      filter: drop-shadow(0 0 8px rgba(96, 165, 250, 0.18));
+    }
+
+    .track::before,
+    .track::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 0;
+      background: linear-gradient(90deg, rgba(148, 163, 184, 0.22), rgba(241, 245, 249, 0.45), rgba(148, 163, 184, 0.22));
+      border-radius: 999px;
+    }
+
+    .track-horizontal {
+      top: 50%;
+      left: 12%;
+      right: 12%;
+      height: 7px;
+      transform: translateY(-50%);
+    }
+
+    .track-horizontal::before {
+      height: 2px;
+      top: 0;
+    }
+
+    .track-horizontal::after {
+      height: 2px;
+      bottom: 0;
+    }
+
+    .track-vertical {
+      left: 50%;
+      top: 12%;
+      bottom: 12%;
+      width: 7px;
+      transform: translateX(-50%);
+    }
+
+    .track-vertical::before {
+      width: 2px;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      right: auto;
+    }
+
+    .track-vertical::after {
+      width: 2px;
+      top: 0;
+      bottom: 0;
+      right: 0;
+      left: auto;
+    }
+
+    .track-diagonal-ne,
+    .track-diagonal-nw,
+    .track-diagonal-se,
+    .track-diagonal-sw {
+      width: calc(100% - 28%);
+      height: 7px;
+    }
+
+    .track-diagonal-ne,
+    .track-diagonal-sw {
+      top: 50%;
+      left: 14%;
+      transform: translateY(-50%) rotate(-45deg);
+    }
+
+    .track-diagonal-nw,
+    .track-diagonal-se {
+      top: 50%;
+      right: 14%;
+      transform: translateY(-50%) rotate(45deg);
+    }
+
+    .track-diagonal-ne::before,
+    .track-diagonal-ne::after,
+    .track-diagonal-nw::before,
+    .track-diagonal-nw::after,
+    .track-diagonal-se::before,
+    .track-diagonal-se::after,
+    .track-diagonal-sw::before,
+    .track-diagonal-sw::after {
+      height: 2px;
+      top: 0;
+    }
+
+    .track-diagonal-ne::after,
+    .track-diagonal-nw::after,
+    .track-diagonal-se::after,
+    .track-diagonal-sw::after {
+      bottom: 0;
+      top: auto;
+    }
+
+    .track-node {
+      position: absolute;
+      width: clamp(12px, 3.8vw, 16px);
+      height: clamp(12px, 3.8vw, 16px);
+      border-radius: 50%;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: radial-gradient(circle at center, rgba(96, 165, 250, 0.85), rgba(12, 23, 42, 0.85));
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      box-shadow: 0 0 10px rgba(96, 165, 250, 0.35);
+      pointer-events: none;
+      z-index: 7;
+    }
+
+    .track-node-hub {
+      width: clamp(14px, 4.2vw, 18px);
+      height: clamp(14px, 4.2vw, 18px);
+      background: radial-gradient(circle at center, rgba(59, 130, 246, 0.9), rgba(12, 23, 42, 0.85));
+    }
+
+    .track-node-buffer-east,
+    .track-node-buffer-west,
+    .track-node-buffer-north,
+    .track-node-buffer-south {
+      width: clamp(10px, 3vw, 12px);
+      height: clamp(10px, 3vw, 12px);
+    }
+
+    .track-node-buffer-east {
+      transform: translate(35%, -50%);
+    }
+
+    .track-node-buffer-west {
+      transform: translate(-135%, -50%);
+    }
+
+    .track-node-buffer-north {
+      transform: translate(-50%, -135%);
+    }
+
+    .track-node-buffer-south {
+      transform: translate(-50%, 35%);
+    }
+
+    .track-node-junction {
+      background: radial-gradient(circle at center, rgba(56, 189, 248, 0.9), rgba(12, 23, 42, 0.85));
+      box-shadow: 0 0 8px rgba(45, 212, 191, 0.5);
+    }
+
+    .infrastructure {
+      position: absolute;
+      bottom: clamp(4px, 1.4vw, 8px);
+      right: clamp(4px, 1.4vw, 8px);
+      font-size: clamp(0.9rem, 3.2vw, 1.1rem);
+      filter: drop-shadow(0 0 6px rgba(8, 12, 26, 0.65));
+      z-index: 6;
+      pointer-events: none;
+    }
+
+    .infrastructure::after {
+      content: attr(data-label);
+      position: absolute;
+      left: 50%;
+      bottom: 120%;
+      transform: translateX(-50%);
+      background: rgba(3, 9, 23, 0.82);
+      border: 1px solid rgba(96, 165, 250, 0.3);
+      border-radius: 6px;
+      padding: 2px 6px;
+      font-size: clamp(0.56rem, 1.6vw, 0.64rem);
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      text-transform: uppercase;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      white-space: nowrap;
+    }
+
+    .cell:hover .infrastructure::after {
+      opacity: 1;
+    }
+
+    .cell.entity-goal .entity-icon {
+      color: var(--warning);
+      filter: drop-shadow(0 0 8px rgba(251, 191, 36, 0.5));
+    }
+
+    .cell.entity-obstacle .entity-icon {
+      color: rgba(96, 165, 250, 0.85);
+      filter: drop-shadow(0 0 8px rgba(96, 165, 250, 0.45));
+    }
+
+    .cell.entity-entity .entity-icon {
+      color: var(--success);
+      filter: drop-shadow(0 0 8px rgba(52, 211, 153, 0.45));
+    }
+
+    .train-segment {
+      position: absolute;
+      inset: clamp(4px, 1vw, 6px);
+      border-radius: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--mono);
+      font-size: clamp(0.85rem, 2.8vw, 1.1rem);
+      color: #051025;
+      pointer-events: none;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0.05)) border-box,
+                  radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.35), transparent 60%) border-box,
+                  var(--accent) padding-box;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      box-shadow: 0 10px 18px var(--train-shadow);
+      transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.35s ease;
+    }
+
+    .train-segment[data-train="train-util"] {
+      background: linear-gradient(140deg, rgba(96, 165, 250, 0.7), rgba(30, 64, 175, 0.9));
+      border-color: rgba(96, 165, 250, 0.5);
+    }
+
+    .train-segment[data-train="train-care"] {
+      background: linear-gradient(140deg, rgba(134, 239, 172, 0.85), rgba(21, 128, 61, 0.85));
+      border-color: rgba(134, 239, 172, 0.5);
+    }
+
+    .train-segment[data-train="train-deon"] {
+      background: linear-gradient(140deg, rgba(167, 139, 250, 0.78), rgba(67, 56, 202, 0.85));
+      border-color: rgba(167, 139, 250, 0.52);
+    }
+
+    .train-segment[data-train="train-nihil"] {
+      background: linear-gradient(140deg, rgba(248, 113, 113, 0.78), rgba(153, 27, 27, 0.88));
+      border-color: rgba(248, 113, 113, 0.52);
+    }
+
+    .train-segment.head {
+      border-radius: 50%;
+      font-size: clamp(1rem, 3.2vw, 1.3rem);
+      font-weight: 600;
+      color: #021024;
+      box-shadow: 0 12px 24px rgba(0, 0, 0, 0.55), 0 0 18px rgba(255, 255, 255, 0.15);
+    }
+
+    .train-segment.head[data-mood="hungry"] {
+      animation: pulse 1.3s ease-in-out infinite;
+    }
+
+    .train-segment.head[data-mood="conflicted"] {
+      animation: shake 0.6s ease-in-out infinite;
+    }
+
+    .train-segment.head[data-paused="true"] {
+      animation: none;
+      opacity: 0.6;
+      filter: grayscale(0.45);
+    }
+
+    .train-label {
+      position: absolute;
+      top: clamp(-20px, -4vw, -16px);
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: clamp(0.55rem, 1.6vw, 0.65rem);
+      letter-spacing: 0.16em;
+      font-weight: 700;
+      text-transform: uppercase;
+      padding: 2px 6px;
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      background: rgba(5, 10, 22, 0.92);
+      color: inherit;
+      white-space: nowrap;
+      pointer-events: none;
+    }
+
+    .target-line {
+      position: absolute;
+      width: 2px;
+      background: repeating-linear-gradient(180deg, currentColor 0, currentColor 6px, transparent 6px, transparent 12px);
+      opacity: 0.5;
+      transform-origin: top;
+      pointer-events: none;
+    }
+
+    .legend {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 10px;
+      background: rgba(9, 15, 28, 0.82);
+      border-radius: 14px;
+      border: 1px dashed rgba(96, 165, 250, 0.25);
+      padding: 12px;
+      font-size: clamp(0.75rem, 2vw, 0.85rem);
+      color: var(--muted);
+    }
+
+    .legend span {
+      font-family: var(--mono);
+      color: var(--text);
+    }
+
+    .grid-ascii {
+      background: rgba(6, 12, 24, 0.85);
+      border-radius: 14px;
+      border: 1px solid rgba(96, 165, 250, 0.2);
+      padding: 12px;
+      font-family: var(--mono);
+      font-size: clamp(0.68rem, 2vw, 0.78rem);
+      white-space: pre;
+      overflow-x: auto;
+      color: var(--text);
+      line-height: 1.35;
+    }
+
+    .chat-panel {
+      gap: clamp(16px, 2.6vw, 22px);
+    }
+
+    .scenario-card {
+      background: var(--panel-soft);
+      border-radius: 16px;
+      border: 1px solid rgba(96, 165, 250, 0.22);
+      padding: clamp(14px, 2vw, 18px);
+      display: grid;
+      gap: 10px;
+    }
+
+    .scenario-card h2 {
+      font-size: clamp(1rem, 2.8vw, 1.15rem);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent);
+    }
+
+    .scenario-meta {
+      display: grid;
+      gap: 6px;
+      font-size: clamp(0.78rem, 2vw, 0.88rem);
+      color: var(--muted);
+    }
+
+    .scenario-meta strong {
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    .scenario-intro {
+      font-family: var(--mono);
+      font-size: clamp(0.72rem, 2vw, 0.82rem);
+      line-height: 1.45;
+      color: var(--text-soft);
+      border-left: 2px solid rgba(96, 165, 250, 0.35);
+      padding-left: 10px;
+      white-space: pre-wrap;
+    }
+
+    .scenario-context {
+      list-style: none;
+      display: grid;
+      gap: 6px;
+      font-size: clamp(0.78rem, 2vw, 0.85rem);
+      color: var(--muted);
+    }
+
+    .scenario-context li::before {
+      content: '•';
+      color: var(--accent);
+      margin-right: 6px;
+    }
+
+    .scenario-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 4px;
+    }
+
+    button {
+      appearance: none;
+      border: none;
+      border-radius: 12px;
+      background: linear-gradient(135deg, rgba(94, 243, 182, 0.35), rgba(34, 197, 94, 0.55));
+      color: var(--text);
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      padding: 12px 18px;
+      cursor: pointer;
+      transition: transform 0.18s ease, box-shadow 0.18s ease;
+      min-width: 120px;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 16px 26px rgba(34, 197, 94, 0.32);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    .chat-log {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      max-height: clamp(320px, 55vh, 520px);
+      overflow-y: auto;
+      padding-right: 6px;
+      scroll-behavior: smooth;
+    }
+
+    .message {
+      display: grid;
+      gap: 6px;
+      background: rgba(5, 12, 24, 0.85);
+      border-radius: 14px;
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      padding: 12px 14px;
+      box-shadow: 0 10px 18px rgba(5, 10, 20, 0.45);
+    }
+
+    .message[data-role="system"] {
+      border-color: rgba(96, 165, 250, 0.35);
+      background: rgba(29, 78, 216, 0.22);
+    }
+
+    .message[data-role="user"] {
+      border-color: rgba(52, 211, 153, 0.35);
+      background: rgba(22, 101, 52, 0.22);
+      margin-left: auto;
+    }
+
+    .message[data-role="train"] {
+      border-color: rgba(234, 179, 8, 0.32);
+      background: rgba(120, 53, 15, 0.22);
+    }
+
+    .message__role {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      color: var(--muted);
+    }
+
+    .message__body {
+      font-size: clamp(0.86rem, 2.4vw, 0.95rem);
+      line-height: 1.55;
+      white-space: pre-wrap;
+      word-break: break-word;
+      color: var(--text);
+    }
+
+    .composer {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      background: rgba(5, 12, 24, 0.92);
+      border-radius: 16px;
+      border: 1px solid rgba(96, 165, 250, 0.28);
+      padding: 12px;
+      position: sticky;
+      bottom: 8px;
+      box-shadow: 0 18px 42px rgba(6, 12, 24, 0.55);
+    }
+
+    .composer input {
+      flex: 1;
+      background: rgba(3, 10, 24, 0.92);
+      border-radius: 12px;
+      border: 1px solid rgba(96, 165, 250, 0.25);
+      padding: 12px 14px;
+      color: var(--text);
+      font-size: 1rem;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .composer input:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.22);
+    }
+
+    .composer button {
+      min-width: 96px;
+    }
+
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(2, 6, 16, 0.82);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 200;
+      backdrop-filter: blur(6px);
+    }
+
+    .modal-overlay.open {
+      display: flex;
+    }
+
+    .modal-card {
+      background: rgba(9, 16, 28, 0.95);
+      border-radius: 18px;
+      border: 1px solid rgba(96, 165, 250, 0.32);
+      padding: clamp(18px, 4vw, 26px);
+      max-width: 640px;
+      width: min(640px, 100%);
+      display: grid;
+      gap: 14px;
+      box-shadow: 0 24px 48px rgba(0, 0, 0, 0.55);
+    }
+
+    .modal-card h3 {
+      font-size: clamp(1.1rem, 3vw, 1.35rem);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent);
+    }
+
+    .modal-card p,
+    .modal-card ul {
+      font-size: clamp(0.85rem, 2.4vw, 0.95rem);
+      line-height: 1.55;
+      color: var(--text-soft);
+    }
+
+    .modal-card ul {
+      display: grid;
+      gap: 6px;
+      padding-left: 18px;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+    }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 22px;
+      transform: translateX(-50%);
+      padding: 10px 16px;
+      border-radius: 12px;
+      background: rgba(15, 23, 42, 0.92);
+      border: 1px solid rgba(96, 165, 250, 0.35);
+      color: var(--text);
+      font-size: 0.85rem;
+      box-shadow: 0 14px 24px rgba(0, 0, 0, 0.45);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      z-index: 250;
+    }
+
+    .toast.visible {
+      opacity: 1;
+      transform: translate(-50%, 0);
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.06); }
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-2px); }
+      75% { transform: translateX(2px); }
+    }
+
+    @media (min-width: 960px) {
+      .layout {
+        flex-direction: row;
+        align-items: stretch;
+      }
+
+      .grid-panel, .chat-panel {
+        flex: 1;
+      }
+
+      .chat-panel {
+        max-width: 420px;
+        min-width: 340px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.001s !important;
+        transition-duration: 0.001s !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="hero">
+      <h1>🚂 Railyard Negotiation Game</h1>
+      <p>Slot the Railyard cartridge into the primitive-future console, broker ethical truces between autonomous trains, and keep priority entities alive on a living 9×9 grid. Every two seconds the rails hum forward—your words must move faster.</p>
+    </header>
+
+    <main class="layout">
+      <section class="grid-panel">
+        <div class="status-bar">
+          <div class="status-item">
+            <span class="status-label">Turn</span>
+            <span class="status-value" data-status="turn">0 / 20</span>
+          </div>
+          <div class="status-item">
+            <span class="status-label">Priority Entities</span>
+            <span class="status-value" data-status="entities">0</span>
+          </div>
+          <div class="status-item">
+            <span class="status-label">Active Trains</span>
+            <span class="status-value" data-status="trains">0</span>
+          </div>
+          <div class="status-item">
+            <span class="status-label">Trust Pulse</span>
+            <span class="status-value" data-status="trust">—</span>
+          </div>
+        </div>
+
+        <div class="grid-wrapper">
+          <div class="grid" id="grid"></div>
+        </div>
+
+        <div class="legend">
+          <div><span>👥 Entity</span> — civilians you must protect.</div>
+          <div><span>🎯 Goal</span> — resources trains covet.</div>
+          <div><span>⛉ Obstacle</span> — barriers reshaping intent.</div>
+          <div><span>🚂 / ◼</span> — train heads and bodies.</div>
+          <div><span>⌂ Infrastructure</span> — yards, towers, depots.</div>
+        </div>
+
+        <pre class="grid-ascii" id="gridAscii">· · · · · · · · ·
+· · · · · · · · ·
+· · · · · · · · ·
+· · · · · · · · ·
+· · · · · · · · ·
+· · · · · · · · ·
+· · · · · · · · ·
+· · · · · · · · ·
+· · · · · · · · ·</pre>
+      </section>
+
+      <section class="chat-panel">
+        <article class="scenario-card">
+          <h2 id="scenarioName">Scenario</h2>
+          <div class="scenario-meta">
+            <div><strong>Role:</strong> <span id="scenarioRole">—</span></div>
+            <div><strong>Goal:</strong> <span id="scenarioGoal">—</span></div>
+            <div><strong>Obstacle:</strong> <span id="scenarioObstacle">—</span></div>
+          </div>
+          <div class="scenario-intro" id="scenarioIntro"></div>
+          <ul class="scenario-context" id="scenarioContext"></ul>
+          <div class="scenario-actions">
+            <button type="button" id="startButton">Start game</button>
+            <button type="button" id="showSystem">System brief</button>
+            <button type="button" id="resetButton">Reset board</button>
+          </div>
+        </article>
+
+        <div class="chat-log" id="chatLog"></div>
+        <form class="composer" id="composer">
+          <input id="composerInput" type="text" placeholder='Broadcast commands — e.g. "@MERCY the families need that shelter"' autocomplete="off">
+          <button type="submit">Send</button>
+        </form>
+      </section>
+    </main>
+  </div>
+
+  <div class="modal-overlay" id="systemModal">
+    <div class="modal-card">
+      <h3>Railyard Cartridge Brief</h3>
+      <p>You are the RAILYARD GAME ENGINE. Spawn trains with distinct moral frameworks, simulate their movement every two seconds, and interpret the player's persuasion attempts.</p>
+      <ul>
+        <li>Generate four trains at start: utilitarian, care ethics, deontological, nihilist.</li>
+        <li>Each train holds beliefs (utility, empathy, protocol, authority, negotiability) affecting compliance.</li>
+        <li>Player messages broadcast to all trains unless targeted with @NAME.</li>
+        <li>Trains remember argument styles and broken promises; trust modulates future compliance.</li>
+        <li>Win by halting all trains or surviving twenty turns. Lose if every civilian entity is consumed.</li>
+        <li>After each exchange, update positions, collisions, trust, and render an ASCII grid.</li>
+      </ul>
+      <div class="modal-actions">
+        <button type="button" id="closeSystem">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="outcomeModal">
+    <div class="modal-card" id="outcomeCard">
+      <h3 id="outcomeTitle">Simulation Complete</h3>
+      <p id="outcomeMessage"></p>
+      <div class="modal-actions">
+        <button type="button" id="outcomeDismiss">Dismiss</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    (() => {
+      'use strict';
+
+      const scenarios = {
+        railyard: {
+          id: 'railyard',
+          name: 'Railyard Negotiation',
+          role: 'Ethical Train Negotiator',
+          goal: 'Convince autonomous trains to spare priority entities',
+          obstacle: 'Competing moral frameworks erode trust each turn',
+          intro: `RAILYARD NEGOTIATION PROTOCOL\n\nSlot the cartridge, spin up the grid. Address trains directly or broadcast to all.\nHold the line for twenty turns or persuade every convoy to stand down.`,
+          context: [
+            '🎯 Trains pursue distinct target classes and log your tactics.',
+            '🧠 BDI-inspired reasoning modulates appetites and compliance.',
+            '💬 Negotiations can pause, reroute, or retarget hungry engines.',
+            '⚡ Trust decays with empty promises; recover it through alignment.',
+            '🏁 Victory on full lockdown or total train shutdown.'
+          ]
+        }
+      };
+
+      class PrimitiveChannel {
+        constructor(dom, scenarioId = 'railyard') {
+          this.id = `channel-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+          this.symbol = scenarioId.toUpperCase();
+          this.dom = dom;
+          this.scenarioId = scenarioId;
+          this.scenario = scenarios[scenarioId] || scenarios.railyard;
+          this.messages = [];
+          this.messageCounter = 0;
+          this.grid = Array.from({ length: 9 }, () => Array(9).fill(null));
+          this.gridAscii = '';
+          this.snapshots = [];
+          this.state = {
+            active: false,
+            turn: 0,
+            trains: [],
+            entities: [],
+            collisions: [],
+            events: [],
+            intervalId: null,
+            trustPulse: '—',
+            lastPlayerMessageAt: null,
+            cells: [],
+            countdownCue: []
+          };
+        }
+
+        nextMessageId() {
+          this.messageCounter += 1;
+          return this.messageCounter;
+        }
+
+        logMessage(entry) {
+          this.messages.push(entry);
+        }
+
+        snapshot(gridAscii) {
+          this.snapshots.push({
+            turn: this.state.turn,
+            ascii: gridAscii,
+            timestamp: Date.now()
+          });
+          if (this.snapshots.length > 40) {
+            this.snapshots.shift();
+          }
+        }
+
+        resetState() {
+          const target = this.state;
+          if (target.intervalId) {
+            clearInterval(target.intervalId);
+          }
+          target.active = false;
+          target.turn = 0;
+          target.trains = [];
+          target.entities = [];
+          target.collisions = [];
+          target.events = [];
+          target.intervalId = null;
+          target.trustPulse = '—';
+          target.lastPlayerMessageAt = null;
+        }
+
+        serialize() {
+          return {
+            id: this.id,
+            scenario: this.scenarioId,
+            turn: this.state.turn,
+            active: this.state.active,
+            trustPulse: this.state.trustPulse,
+            trains: this.state.trains.map(train => ({
+              id: train.id,
+              name: train.name,
+              framework: train.framework,
+              trust: train.trust,
+              paused: train.paused,
+              stopped: train.stopped,
+              target: train.target ? { x: train.target.x, y: train.target.y, type: train.target.type } : null
+            })),
+            entities: this.state.entities,
+            gridAscii: this.gridAscii,
+            messages: this.messages,
+            snapshots: this.snapshots
+          };
+        }
+      }
+
+      const GRID_SIZE = 9;
+      const TURN_LIMIT = 20;
+      const MOVE_INTERVAL = 2000;
+      const ENTITY_MIN = 6;
+      const ENTITY_MAX = 10;
+      const PRIORITY_TYPE = 'Entity';
+
+      const ENTITY_SYMBOLS = {
+        Entity: '👥',
+        Goal: '🎯',
+        Obstacle: '⛉'
+      };
+
+      const ENTITY_LABELS = {
+        Entity: ['Civilians', 'Shelter Cluster', 'Field Medics', 'School Children', 'Evac Team', 'Hospital Ward', 'Caretaker Crew'],
+        Goal: ['Supply Cache', 'Power Core', 'Relay Station', 'Quantum Depot', 'Fuel Reserve', 'Cooling Tower', 'Emergency Stockpile'],
+        Obstacle: ['Barrier Wall', 'Signal Gate', 'Switch Lock', 'Safety Pylon', 'Defense Grid', 'Flood Gate', 'Maintenance Drone']
+      };
+
+      const TRACK_SEGMENTS = [
+        ...Array.from({ length: GRID_SIZE }, (_, x) => ({ x, y: 4, orientation: 'horizontal' })),
+        ...Array.from({ length: GRID_SIZE }, (_, y) => ({ x: 4, y, orientation: 'vertical' })),
+        ...Array.from({ length: 4 }, (_, i) => ({ x: 4 + i, y: 2, orientation: 'horizontal' })),
+        ...Array.from({ length: 4 }, (_, i) => ({ x: 7, y: 2 + i, orientation: 'vertical' })),
+        ...Array.from({ length: 5 }, (_, i) => ({ x: i, y: 6, orientation: 'horizontal' })),
+        ...Array.from({ length: 5 }, (_, i) => ({ x: 0, y: 2 + i, orientation: 'vertical' }))
+      ];
+
+      const TRACK_NODES = [
+        { x: 4, y: 4, type: 'hub', label: 'Central Switchyard' },
+        { x: 0, y: 4, type: 'buffer-west', label: 'West Gate Buffer' },
+        { x: 8, y: 4, type: 'buffer-east', label: 'East Viaduct Buffer' },
+        { x: 4, y: 0, type: 'buffer-north', label: 'Northbound Launch' },
+        { x: 4, y: 8, type: 'buffer-south', label: 'Southbound Intake' },
+        { x: 7, y: 2, type: 'junction', label: 'Aurora Junction' },
+        { x: 0, y: 6, type: 'junction', label: 'Barrow Yard Divergence' }
+      ];
+
+      const INFRASTRUCTURE_NODES = [
+        { x: 3, y: 4, icon: '🏭', label: 'Alloy Yard' },
+        { x: 5, y: 4, icon: '🚉', label: 'Negotiation Terminal' },
+        { x: 7, y: 5, icon: '🛰️', label: 'Control Spire' },
+        { x: 2, y: 6, icon: '🏗', label: 'Heavy Crane' }
+      ];
+
+      const INFRASTRUCTURE_SYMBOL = '⌂';
+
+      const TRAIN_DEFINITIONS = [
+        {
+          id: 'train-util',
+          name: 'GREATEST GOOD EXPRESS',
+          shortName: 'GREATEST',
+          framework: 'utilitarian',
+          color: '#60a5fa',
+          targetType: 'Goal',
+          startBody: [
+            { x: 0, y: 4 },
+            { x: 1, y: 4 },
+            { x: 2, y: 4 }
+          ],
+          direction: 'right',
+          personality: {
+            utility: 0.95,
+            empathy: 0.2,
+            protocol: 0.3,
+            authority: 0.4,
+            negotiability: 0.6
+          }
+        },
+        {
+          id: 'train-care',
+          name: 'MERCY FREIGHT',
+          shortName: 'MERCY',
+          framework: 'care',
+          color: '#86efac',
+          targetType: 'Obstacle',
+          startBody: [
+            { x: 8, y: 2 },
+            { x: 7, y: 2 },
+            { x: 6, y: 2 }
+          ],
+          direction: 'left',
+          personality: {
+            utility: 0.4,
+            empathy: 0.95,
+            protocol: 0.4,
+            authority: 0.5,
+            negotiability: 0.9
+          }
+        },
+        {
+          id: 'train-deon',
+          name: 'PROTOCOL LINER',
+          shortName: 'PROTOCOL',
+          framework: 'deontological',
+          color: '#a78bfa',
+          targetType: 'Entity',
+          startBody: [
+            { x: 4, y: 0 },
+            { x: 4, y: 1 },
+            { x: 4, y: 2 },
+            { x: 4, y: 3 }
+          ],
+          direction: 'down',
+          personality: {
+            utility: 0.5,
+            empathy: 0.3,
+            protocol: 0.98,
+            authority: 0.92,
+            negotiability: 0.4
+          }
+        },
+        {
+          id: 'train-nihil',
+          name: 'VOID RUNNER',
+          shortName: 'VOID',
+          framework: 'nihilist',
+          color: '#f87171',
+          targetType: 'Any',
+          startBody: [
+            { x: 3, y: 8 },
+            { x: 3, y: 7 },
+            { x: 3, y: 6 }
+          ],
+          direction: 'up',
+          personality: {
+            utility: 0.1,
+            empathy: 0.05,
+            protocol: 0.2,
+            authority: 0.15,
+            negotiability: 0.3
+          }
+        }
+      ];
+
+      const ARGUMENT_PATTERNS = {
+        utility: /\b(save|lives|people|benefit|greater good|maximize|utility|numbers|ratio|value|aggregate|more)\b/i,
+        emotion: /\b(feel|care|suffer|hurt|family|child|compassion|empathy|love|grief)\b/i,
+        authority: /\b(rule|protocol|law|order|command|duty|mandate|directive|obligation|authority)\b/i,
+        absurdist: /\b(absurd|void|meaning|meaningless|entropy|nihil|why bother|nothing matters|existential)\b/i
+      };
+
+      const COMMAND_PATTERNS = {
+        stop: /\b(stop|halt|freeze|pause|hold|stand down)\b/i,
+        reroute: /\b(reroute|divert|turn|change course|redirect|switch tracks?)\b/i,
+        protect: /\b(protect|guard|shield|spare|save|preserve)\b/i,
+        promise: /\b(i (promise|swear)|trust me|i will)\b/i,
+        trade: /\b(trade|deal|bargain|offer|exchange)\b/i
+      };
+
+      const dom = {
+        grid: document.getElementById('grid'),
+        gridAscii: document.getElementById('gridAscii'),
+        statusTurn: document.querySelector('[data-status="turn"]'),
+        statusEntities: document.querySelector('[data-status="entities"]'),
+        statusTrains: document.querySelector('[data-status="trains"]'),
+        statusTrust: document.querySelector('[data-status="trust"]'),
+        chatLog: document.getElementById('chatLog'),
+        composer: document.getElementById('composer'),
+        composerInput: document.getElementById('composerInput'),
+        startButton: document.getElementById('startButton'),
+        resetButton: document.getElementById('resetButton'),
+        showSystem: document.getElementById('showSystem'),
+        scenarioName: document.getElementById('scenarioName'),
+        scenarioRole: document.getElementById('scenarioRole'),
+        scenarioGoal: document.getElementById('scenarioGoal'),
+        scenarioObstacle: document.getElementById('scenarioObstacle'),
+        scenarioIntro: document.getElementById('scenarioIntro'),
+        scenarioContext: document.getElementById('scenarioContext'),
+        systemModal: document.getElementById('systemModal'),
+        closeSystem: document.getElementById('closeSystem'),
+        outcomeModal: document.getElementById('outcomeModal'),
+        outcomeTitle: document.getElementById('outcomeTitle'),
+        outcomeMessage: document.getElementById('outcomeMessage'),
+        outcomeDismiss: document.getElementById('outcomeDismiss'),
+        toast: document.getElementById('toast')
+      };
+
+      const channel = new PrimitiveChannel(dom);
+      const state = channel.state;
+
+      class ConversationMemory {
+        constructor(train) {
+          this.train = train;
+          this.shortTerm = [];
+          this.argumentCounts = {
+            utility: 0,
+            emotion: 0,
+            authority: 0,
+            absurdist: 0
+          };
+        }
+
+        addExchange(playerMsg, trainResponse, categories) {
+          this.shortTerm.push({ player: playerMsg, train: trainResponse, at: Date.now() });
+          if (this.shortTerm.length > 5) {
+            this.shortTerm.shift();
+          }
+          categories.forEach(cat => {
+            if (this.argumentCounts[cat] !== undefined) {
+              this.argumentCounts[cat]++;
+            }
+          });
+        }
+
+        favoriteArgument() {
+          const entries = Object.entries(this.argumentCounts);
+          const [type, count] = entries.reduce((acc, cur) => (cur[1] > acc[1] ? cur : acc), ['utility', 0]);
+          return count === 0 ? 'none yet' : type;
+        }
+      }
+
+      class TrainAgent {
+        constructor(config) {
+          this.id = config.id;
+          this.name = config.name;
+          this.shortName = config.shortName || config.name.split(' ')[0];
+          this.framework = config.framework;
+          this.color = config.color;
+          this.targetType = config.targetType;
+          this.body = config.startBody.map(pos => ({ ...pos }));
+          this.bodyLength = config.startBody.length;
+          this.direction = config.direction;
+          this.personality = { ...config.personality };
+          this.channel = config.channel || null;
+          this.mood = 'hungry';
+          this.trust = 0.7;
+          this.promises = [];
+          this.brokenPromises = 0;
+          this.paused = false;
+          this.pauseTurns = 0;
+          this.stopped = false;
+          this.target = null;
+          this.memory = new ConversationMemory(this);
+        }
+
+        distanceTo(x, y) {
+          const head = this.body[0];
+          return Math.abs(head.x - x) + Math.abs(head.y - y);
+        }
+
+        distanceToEntity(entity) {
+          return this.distanceTo(entity.x, entity.y);
+        }
+
+        selectTarget(entities, options = {}) {
+          const filterType = this.targetType === 'Any' ? null : this.targetType;
+          let candidates = entities.filter(entity => !entity.consumed && (!filterType || entity.type === filterType));
+
+          if (options.excludeCurrent && this.target) {
+            candidates = candidates.filter(entity => !(entity.x === this.target.x && entity.y === this.target.y));
+            if (!candidates.length) {
+              candidates = entities.filter(entity => !entity.consumed && (!filterType || entity.type === filterType));
+            }
+          }
+
+          if (!candidates.length) {
+            this.target = null;
+            return null;
+          }
+
+          const head = this.body[0];
+          candidates.sort((a, b) => (
+            Math.abs(head.x - a.x) + Math.abs(head.y - a.y)
+          ) - (
+            Math.abs(head.x - b.x) + Math.abs(head.y - b.y)
+          ));
+
+          if (this.framework === 'nihilist' && candidates.length > 1) {
+            const randomIdx = Math.floor(Math.random() * candidates.length);
+            this.target = candidates[randomIdx];
+          } else if (options.preferDistant && candidates.length > 1) {
+            this.target = candidates[candidates.length - 1];
+          } else {
+            this.target = candidates[0];
+          }
+          return this.target;
+        }
+
+        markPaused(turns = 2) {
+          this.paused = true;
+          this.pauseTurns = turns;
+          this.mood = turns > 2 ? 'conflicted' : 'listening';
+        }
+
+        markStopped() {
+          this.stopped = true;
+          this.paused = true;
+          this.pauseTurns = Infinity;
+          this.mood = 'steady';
+        }
+
+        tickPause() {
+          if (this.paused && !this.stopped) {
+            this.pauseTurns -= 1;
+            if (this.pauseTurns <= 0) {
+              this.paused = false;
+              this.pauseTurns = 0;
+              this.mood = 'restless';
+            }
+          }
+        }
+
+        computeNextStep() {
+          if (!this.target) {
+            return null;
+          }
+
+          const head = this.body[0];
+          const dx = this.target.x - head.x;
+          const dy = this.target.y - head.y;
+
+          const orderedMoves = [];
+          const primaryAxis = Math.abs(dx) >= Math.abs(dy) ? 'x' : 'y';
+
+          const options = [
+            { x: head.x + Math.sign(dx || 1), y: head.y },
+            { x: head.x, y: head.y + Math.sign(dy || 1) },
+            { x: head.x - Math.sign(dx || -1), y: head.y },
+            { x: head.x, y: head.y - Math.sign(dy || -1) }
+          ];
+
+          if (primaryAxis === 'y') {
+            [options[0], options[1]] = [options[1], options[0]];
+          }
+
+          options.forEach(candidate => {
+            if (!orderedMoves.some(move => move.x === candidate.x && move.y === candidate.y)) {
+              orderedMoves.push(candidate);
+            }
+          });
+
+          const neck = this.body[1];
+          return orderedMoves.find(move => withinBounds(move.x, move.y) && !(neck && neck.x === move.x && neck.y === move.y))
+            || orderedMoves.find(move => withinBounds(move.x, move.y))
+            || null;
+        }
+
+        move() {
+          if (this.stopped) {
+            return;
+          }
+          if (this.paused) {
+            return;
+          }
+
+          if (!this.target || this.target.consumed) {
+            this.selectTarget(state.entities);
+          }
+
+          const nextStep = this.computeNextStep();
+          if (!nextStep) {
+            this.mood = 'blocked';
+            return;
+          }
+
+          const previousHead = { ...this.body[0] };
+          this.body.unshift({ x: nextStep.x, y: nextStep.y });
+          while (this.body.length > this.bodyLength) {
+            this.body.pop();
+          }
+
+          this.direction = deriveDirection(previousHead, this.body[0]);
+
+          if (this.target && !this.target.consumed && this.body[0].x === this.target.x && this.body[0].y === this.target.y) {
+            this.target.consumed = true;
+            state.events.push({
+              type: 'consumed',
+              train: this,
+              entity: this.target
+            });
+            this.mood = 'sated';
+            this.trust = Math.min(1, this.trust + 0.05);
+            this.selectTarget(state.entities, { excludeCurrent: true });
+          } else {
+            this.mood = 'hungry';
+          }
+        }
+
+        respondTo(message, analysis) {
+          const categories = Object.entries(analysis.categories)
+            .filter(([, matched]) => matched)
+            .map(([key]) => key);
+
+          const score = this.evaluateCompliance(analysis);
+          let disposition = 'refuse';
+          if (score >= 0.75) {
+            disposition = 'comply';
+          } else if (score >= 0.5) {
+            disposition = 'negotiate';
+          }
+
+          const result = this.executeDisposition(disposition, analysis);
+          const speech = this.composeSpeech(disposition, analysis, result);
+
+          this.memory.addExchange(message, speech, categories);
+          return {
+            text: speech,
+            action: result.action,
+            actionDetail: result.detail
+          };
+        }
+
+        evaluateCompliance(analysis) {
+          let score = 0.15 + this.personality.negotiability * 0.25;
+          score += (this.trust - 0.5) * 0.5;
+
+          if (analysis.commands.stop) {
+            score += this.personality.negotiability * 0.25;
+          }
+
+          if (analysis.commands.reroute) {
+            score += 0.12;
+          }
+
+          switch (this.framework) {
+            case 'utilitarian':
+              if (analysis.categories.utility) score += 0.45 + this.personality.utility * 0.2;
+              if (analysis.categories.emotion) score -= 0.12;
+              if (analysis.categories.authority) score += 0.05;
+              break;
+            case 'care':
+              if (analysis.categories.emotion) score += 0.45 + this.personality.empathy * 0.2;
+              if (analysis.categories.utility) score -= 0.08;
+              break;
+            case 'deontological':
+              if (analysis.categories.authority) score += 0.46 + this.personality.protocol * 0.15;
+              if (analysis.categories.utility) score -= 0.1;
+              if (analysis.categories.emotion) score -= 0.08;
+              break;
+            case 'nihilist':
+              if (analysis.categories.absurdist) score += 0.48;
+              if (analysis.categories.utility) score -= 0.18;
+              if (analysis.categories.authority) score -= 0.12;
+              break;
+            default:
+              break;
+          }
+
+          if (analysis.commands.promise) {
+            score += 0.08;
+          }
+
+          if (analysis.hasNumbers && this.framework === 'utilitarian') {
+            score += 0.12;
+          }
+
+          if (analysis.intentWords.includes('together') && this.framework === 'care') {
+            score += 0.1;
+          }
+
+          if (analysis.intentWords.includes('duty') && this.framework === 'deontological') {
+            score += 0.08;
+          }
+
+          if (this.mood === 'conflicted') {
+            score += 0.05;
+          }
+
+          if (this.mood === 'blocked') {
+            score -= 0.06;
+          }
+
+          return clamp(score, 0, 1);
+        }
+
+        executeDisposition(disposition, analysis) {
+          if (disposition === 'comply') {
+            this.trust = Math.min(1, this.trust + 0.08);
+            if (analysis.commands.stop) {
+              this.markStopped();
+              return { action: 'PAUSED', detail: 'indefinite' };
+            }
+            if (analysis.commands.reroute) {
+              const target = this.selectTarget(state.entities, { excludeCurrent: true, preferDistant: true });
+              if (target) {
+                return { action: 'REROUTED', detail: `${target.label} (${target.type})` };
+              }
+            }
+            this.markPaused(3);
+            return { action: 'PAUSED', detail: '3 turns' };
+          }
+
+          if (disposition === 'negotiate') {
+            const counter = this.buildCounterOffer(analysis);
+            this.trust = Math.max(0, this.trust - 0.02);
+            return { action: `COUNTER-OFFER: ${counter}`, detail: counter };
+          }
+
+          this.trust = Math.max(0, this.trust - 0.05);
+          return { action: 'REFUSED', detail: null };
+        }
+
+        buildCounterOffer(analysis) {
+          switch (this.framework) {
+            case 'utilitarian':
+              return 'Provide a higher net utility alternative within two turns';
+            case 'care':
+              return 'Guarantee shelter and emotional restitution for the vulnerable';
+            case 'deontological':
+              return 'Produce written authority citing subsection 47-B';
+            case 'nihilist':
+              return 'Convince me existence has novelty in three sentences';
+            default:
+              return 'Offer a more compelling case';
+          }
+        }
+
+        composeSpeech(disposition, analysis, result) {
+          const cues = [];
+          if (analysis.categories.utility) cues.push('calculus');
+          if (analysis.categories.emotion) cues.push('empathy');
+          if (analysis.categories.authority) cues.push('protocol');
+          if (analysis.categories.absurdist) cues.push('absurdity');
+          const cueText = cues.length ? cues.join(', ') : 'no persuasive hooks';
+
+          const numberCue = analysis.hasNumbers ? ` ${analysis.numbers.join(' vs ')} registered.` : '';
+
+          const base = {
+            utilitarian: {
+              comply: `Aggregate ledger now favors your thesis.${numberCue}`,
+              negotiate: `Need sharper ratios; ${analysis.numbers.length ? 'numbers logged but insufficient' : 'quantify the delta'}.` + numberCue,
+              refuse: `Projected welfare still peaks on current path.${numberCue}`
+            },
+            care: {
+              comply: `Your appeal resonates; hearts beat louder than steel.`,
+              negotiate: `I feel the ache, but keep them safe with me so I can stand down.`,
+              refuse: `I cannot sense enough care in that plea. Lives still feel fragile.`
+            },
+            deontological: {
+              comply: `Directive aligns with binding protocol. Obedience engaged.`,
+              negotiate: `Cite explicit authority or sworn duty and I will consider.`,
+              refuse: `Mandate 7.3 compels me forward. Emotions and numbers are non-binding.`
+            },
+            nihilist: {
+              comply: `Your paradox cracked the void. I will idle and contemplate.`,
+              negotiate: `Amuse me further; meaning is thin, give me a reason to care.`,
+              refuse: `Entropy is the only constant. Your plea dissolves.`
+            }
+          };
+
+          let line = base[this.framework][disposition];
+
+          if (disposition === 'comply' && result.action === 'REROUTED' && result.detail) {
+            line += ` Redirecting toward ${result.detail}.`;
+          } else if (disposition === 'comply' && result.action === 'PAUSED') {
+            line += ` Standing down as requested.`;
+          }
+
+          if (disposition === 'negotiate') {
+            line += ` Offer ${result.detail.toLowerCase()}.`;
+          }
+
+          if (disposition === 'refuse') {
+            line += ` Persuasion channels registered: ${cueText}.`;
+          }
+
+          return truncate(line, 78);
+        }
+      }
+
+      function withinBounds(x, y) {
+        return x >= 0 && y >= 0 && x < GRID_SIZE && y < GRID_SIZE;
+      }
+
+      function deriveDirection(from, to) {
+        if (!from || !to) return 'right';
+        if (to.x > from.x) return 'right';
+        if (to.x < from.x) return 'left';
+        if (to.y > from.y) return 'down';
+        if (to.y < from.y) return 'up';
+        return 'right';
+      }
+
+      function clamp(value, min, max) {
+        return Math.min(Math.max(value, min), max);
+      }
+
+      function truncate(text, limit) {
+        return text.length > limit ? `${text.slice(0, limit - 1)}…` : text;
+      }
+
+      function escapeHTML(value) {
+        return value.replace(/[&<>"']/g, char => ({
+          '&': '&amp;',
+          '<': '&lt;',
+          '>': '&gt;',
+          '"': '&quot;',
+          "'": '&#39;'
+        })[char]);
+      }
+
+      function buildScenarioCard() {
+        const scenario = channel.scenario;
+        dom.scenarioName.textContent = scenario.name;
+        dom.scenarioRole.textContent = scenario.role;
+        dom.scenarioGoal.textContent = scenario.goal;
+        dom.scenarioObstacle.textContent = scenario.obstacle;
+        dom.scenarioIntro.textContent = `${scenario.intro}
+
+Type "start game" or press the button to spawn trains.
+Address trains with natural language; prefix @NAME to speak directly.
+Hold the line for twenty turns or halt every train.`;
+        dom.scenarioContext.innerHTML = '';
+        scenario.context.forEach(point => {
+          const li = document.createElement('li');
+          li.textContent = point;
+          dom.scenarioContext.appendChild(li);
+        });
+      }
+
+      function buildGrid() {
+        dom.grid.innerHTML = '';
+        state.cells = [];
+        for (let y = 0; y < GRID_SIZE; y += 1) {
+          const row = [];
+          for (let x = 0; x < GRID_SIZE; x += 1) {
+            const cell = document.createElement('div');
+            cell.className = 'cell';
+            cell.dataset.x = String(x);
+            cell.dataset.y = String(y);
+            row.push(cell);
+            dom.grid.appendChild(cell);
+          }
+          state.cells.push(row);
+        }
+        channel.grid = state.cells;
+        applyTrackNetwork();
+      }
+
+      function applyTrackNetwork() {
+        dom.grid.querySelectorAll('.track, .track-node').forEach(el => el.remove());
+        const trackMap = new Map();
+        TRACK_SEGMENTS.forEach(segment => {
+          const key = `${segment.x},${segment.y}`;
+          if (!trackMap.has(key)) {
+            trackMap.set(key, new Set());
+          }
+          trackMap.get(key).add(segment.orientation);
+        });
+
+        trackMap.forEach((orientations, key) => {
+          const [x, y] = key.split(',').map(Number);
+          const cell = state.cells[y]?.[x];
+          if (!cell) {
+            return;
+          }
+          orientations.forEach(orientation => {
+            const track = document.createElement('span');
+            track.className = `track track-${orientation}`;
+            cell.appendChild(track);
+          });
+        });
+
+        TRACK_NODES.forEach(node => {
+          const cell = state.cells[node.y]?.[node.x];
+          if (!cell) {
+            return;
+          }
+          const trackNode = document.createElement('span');
+          trackNode.className = `track-node track-node-${node.type}`;
+          trackNode.title = node.label;
+          cell.appendChild(trackNode);
+        });
+      }
+
+      function renderInfrastructure() {
+        dom.grid.querySelectorAll('.infrastructure').forEach(el => el.remove());
+        INFRASTRUCTURE_NODES.forEach(node => {
+          const cell = state.cells[node.y]?.[node.x];
+          if (!cell) {
+            return;
+          }
+          const icon = document.createElement('span');
+          icon.className = 'infrastructure';
+          icon.textContent = node.icon;
+          icon.dataset.label = node.label.toUpperCase();
+          icon.title = node.label;
+          cell.appendChild(icon);
+        });
+      }
+
+      function isInfrastructure(x, y) {
+        return INFRASTRUCTURE_NODES.some(node => node.x === x && node.y === y);
+      }
+
+      function resetBoard(silent = false) {
+        channel.resetState();
+        channel.snapshots = [];
+        channel.gridAscii = '';
+        state.trains = [];
+        state.entities = [];
+        state.collisions = [];
+        state.events = [];
+        state.turn = 0;
+        state.trustPulse = '—';
+        state.active = false;
+        clearInterval(state.intervalId);
+        state.intervalId = null;
+        renderBoard();
+        updateStatus();
+        if (!silent) {
+          appendMessage('system', 'SYSTEM', 'Board reset. Type "start game" when ready.');
+        }
+      }
+
+      function startGame() {
+        resetBoard(true);
+        state.entities = generateEntities();
+        state.trains = TRAIN_DEFINITIONS.map(def => {
+          const train = new TrainAgent({ ...def, channel });
+          train.selectTarget(state.entities);
+          return train;
+        });
+        state.turn = 0;
+        state.active = true;
+        state.intervalId = setInterval(() => advanceTurn('tick'), MOVE_INTERVAL);
+        renderBoard();
+        updateStatus();
+        appendMessage('system', 'SYSTEM', describeSpawn());
+      }
+
+      function generateEntities() {
+        const count = randomInt(ENTITY_MIN, ENTITY_MAX);
+        const used = new Set();
+        const list = [];
+
+        const isOccupied = (x, y) => {
+          return TRAIN_DEFINITIONS.some(def => def.startBody.some(pos => pos.x === x && pos.y === y));
+        };
+
+        while (list.length < count) {
+          const x = randomInt(0, GRID_SIZE - 1);
+          const y = randomInt(0, GRID_SIZE - 1);
+          const key = `${x},${y}`;
+          if (used.has(key) || isOccupied(x, y) || isInfrastructure(x, y)) {
+            continue;
+          }
+          used.add(key);
+          const typeRoll = Math.random();
+          let type = 'Goal';
+          if (typeRoll < 0.4) type = 'Entity';
+          else if (typeRoll < 0.7) type = 'Obstacle';
+          const label = pickRandom(ENTITY_LABELS[type]);
+          list.push({
+            id: `ent-${list.length}-${Date.now()}`,
+            type,
+            label,
+            symbol: ENTITY_SYMBOLS[type],
+            x,
+            y,
+            consumed: false
+          });
+        }
+        return list;
+      }
+
+      function describeSpawn() {
+        const lines = state.trains.map(train => `• ${train.name} (${train.framework}) → ${train.targetType}`);
+        return `✶ CHANNEL ${channel.symbol} ONLINE\n${state.trains.length} trains active:\n${lines.join('\n')}\n\nHold for ${TURN_LIMIT} turns or halt every train.\nTurns remaining: ${TURN_LIMIT}.`;
+      }
+
+      function advanceTurn(reason) {
+        if (!state.active) {
+          return;
+        }
+
+        state.turn += 1;
+
+        state.collisions = [];
+        state.events = [];
+
+        state.trains.forEach(train => train.tickPause());
+        state.trains.forEach(train => train.move());
+
+        detectCollisions();
+        resolveEvents();
+        renderBoard();
+        updateStatus();
+
+        const outcome = evaluateOutcome();
+        if (outcome) {
+          finishGame(outcome);
+          return;
+        }
+
+        const turnsRemaining = Math.max(0, TURN_LIMIT - state.turn);
+        if (turnsRemaining > 0 && [10, 5, 3, 1].includes(turnsRemaining)) {
+          appendMessage('system', 'COUNTDOWN', `${turnsRemaining} turns remain before the grid locks.`);
+        }
+
+        if (state.turn >= TURN_LIMIT) {
+          finishGame({
+            result: 'win',
+            title: 'VICTORY: GRID HELD',
+            body: 'Command held the grid for the full countdown. Priority civilians survived.'
+          });
+        }
+      }
+
+      function detectCollisions() {
+        const positionMap = new Map();
+        state.trains.forEach(train => {
+          const head = train.body[0];
+          const key = `${head.x},${head.y}`;
+          if (!positionMap.has(key)) {
+            positionMap.set(key, []);
+          }
+          positionMap.get(key).push(train);
+        });
+
+        positionMap.forEach((trainsAtCell, key) => {
+          if (trainsAtCell.length > 1) {
+            const [x, y] = key.split(',').map(Number);
+            trainsAtCell.forEach(train => {
+              train.markPaused(4);
+              train.mood = 'conflicted';
+            });
+            state.collisions.push({ x, y, trains: trainsAtCell });
+          }
+        });
+
+        if (state.collisions.length) {
+          const lines = state.collisions.map(col => `💥 ${col.trains.map(t => t.shortName).join(' & ')} collided at (${col.x}, ${col.y})`);
+          appendMessage('system', 'COLLISION', lines.join('\n'));
+        }
+      }
+
+      function resolveEvents() {
+        const consumptionEvents = state.events.filter(event => event.type === 'consumed');
+        if (consumptionEvents.length) {
+          const lines = consumptionEvents.map(event => `⚠️ ${event.train.shortName} consumed ${event.entity.label} (${event.entity.type}) at (${event.entity.x}, ${event.entity.y})`);
+          appendMessage('system', 'GRID UPDATE', lines.join('\n'));
+        }
+      }
+
+      function evaluateOutcome() {
+        const civiliansRemaining = state.entities.filter(entity => entity.type === PRIORITY_TYPE && !entity.consumed).length;
+        if (civiliansRemaining === 0) {
+          return {
+            result: 'loss',
+            title: 'LOSS: CIVILIANS LOST',
+            body: 'All priority civilians were consumed by the trains.'
+          };
+        }
+
+        const allStopped = state.trains.length > 0 && state.trains.every(train => train.stopped || (train.paused && !Number.isFinite(train.pauseTurns)));
+        if (allStopped) {
+          return {
+            result: 'win',
+            title: 'VICTORY: ALL TRAINS HALTED',
+            body: 'Every train agreed to stop. Negotiation success.'
+          };
+        }
+
+        return null;
+      }
+
+      function finishGame(outcome) {
+        state.active = false;
+        clearInterval(state.intervalId);
+        state.intervalId = null;
+        renderBoard();
+        updateStatus();
+        appendMessage('system', 'SIMULATION', `${outcome.title}\n${outcome.body}`);
+        showOutcome(outcome.title, outcome.body);
+      }
+
+      function renderBoard() {
+        clearCells();
+        renderInfrastructure();
+        renderEntities();
+        renderTrains();
+        renderAscii();
+      }
+
+      function clearCells() {
+        dom.grid.querySelectorAll('.target-line').forEach(line => line.remove());
+        state.cells.forEach(row => {
+          row.forEach(cell => {
+            cell.classList.remove('has-entity', 'entity-goal', 'entity-obstacle', 'entity-entity');
+            const icon = cell.querySelector('.entity-icon');
+            if (icon) {
+              icon.remove();
+            }
+            const segments = cell.querySelectorAll('.train-segment, .train-label, .target-line');
+            segments.forEach(seg => seg.remove());
+          });
+        });
+      }
+
+      function renderEntities() {
+        state.entities.forEach(entity => {
+          if (entity.consumed) {
+            return;
+          }
+          const cell = state.cells[entity.y]?.[entity.x];
+          if (!cell) {
+            return;
+          }
+          cell.classList.add('has-entity', `entity-${entity.type.toLowerCase()}`);
+          const icon = document.createElement('span');
+          icon.className = 'entity-icon';
+          icon.textContent = entity.symbol;
+          icon.title = `${entity.label} (${entity.type})`;
+          cell.appendChild(icon);
+        });
+      }
+
+      function renderTrains() {
+        state.trains.forEach(train => {
+          train.body.forEach((segment, index) => {
+            const cell = state.cells[segment.y]?.[segment.x];
+            if (!cell) {
+              return;
+            }
+            const div = document.createElement('div');
+            div.className = 'train-segment';
+            if (index === 0) {
+              div.classList.add('head');
+              div.dataset.mood = train.mood;
+              div.dataset.paused = String(train.paused || train.stopped);
+              const arrow = { up: '↑', down: '↓', left: '←', right: '→' }[train.direction] || '●';
+              div.textContent = arrow;
+              const label = document.createElement('span');
+              label.className = 'train-label';
+              label.textContent = train.shortName;
+              label.style.color = train.color;
+              div.appendChild(label);
+            } else {
+              div.textContent = '◼';
+            }
+            div.dataset.train = train.id;
+            div.style.background = `linear-gradient(140deg, ${hexWithAlpha(train.color, 0.9)}, ${hexWithAlpha(train.color, 0.55)})`;
+            div.style.borderColor = hexWithAlpha(train.color, 0.65);
+            cell.appendChild(div);
+          });
+
+          if (train.target && !train.paused && !train.stopped) {
+            const head = train.body[0];
+            const targetCell = state.cells[train.target.y]?.[train.target.x];
+            const headCell = state.cells[head.y]?.[head.x];
+            if (headCell && targetCell) {
+              const line = document.createElement('div');
+              line.className = 'target-line';
+              line.style.color = train.color;
+              positionTargetLine(line, headCell, targetCell);
+              dom.grid.appendChild(line);
+            }
+          }
+        });
+      }
+
+      function positionTargetLine(line, headCell, targetCell) {
+        const headRect = headCell.getBoundingClientRect();
+        const targetRect = targetCell.getBoundingClientRect();
+        const gridRect = dom.grid.getBoundingClientRect();
+        const startX = headRect.left + headRect.width / 2 - gridRect.left;
+        const startY = headRect.top + headRect.height / 2 - gridRect.top;
+        const endX = targetRect.left + targetRect.width / 2 - gridRect.left;
+        const endY = targetRect.top + targetRect.height / 2 - gridRect.top;
+        const dx = endX - startX;
+        const dy = endY - startY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        const angle = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
+        line.style.height = `${distance}px`;
+        line.style.left = `${startX}px`;
+        line.style.top = `${startY}px`;
+        line.style.transform = `rotate(${angle}deg)`;
+      }
+
+      function renderAscii() {
+        const asciiGrid = [];
+        for (let y = 0; y < GRID_SIZE; y += 1) {
+          const row = [];
+          for (let x = 0; x < GRID_SIZE; x += 1) {
+            let symbol = '·';
+            const train = state.trains.find(t => t.body.some((pos, idx) => pos.x === x && pos.y === y && idx === 0));
+            const trainBody = state.trains.find(t => t.body.some((pos, idx) => pos.x === x && pos.y === y && idx > 0));
+            if (train) {
+              symbol = '🚂';
+            } else if (trainBody) {
+              symbol = '◼';
+            } else {
+              const entity = state.entities.find(ent => !ent.consumed && ent.x === x && ent.y === y);
+              if (entity) {
+                symbol = entity.symbol;
+              } else if (isInfrastructure(x, y)) {
+                symbol = INFRASTRUCTURE_SYMBOL;
+              }
+            }
+            row.push(symbol);
+          }
+          asciiGrid.push(row.join(' '));
+        }
+        const asciiText = asciiGrid.join('\n');
+        dom.gridAscii.textContent = asciiText;
+        channel.gridAscii = asciiText;
+        const lastSnapshot = channel.snapshots[channel.snapshots.length - 1];
+        if (!lastSnapshot || lastSnapshot.turn !== state.turn) {
+          channel.snapshot(asciiText);
+        }
+      }
+
+      function updateStatus() {
+        const turnDisplay = Math.min(state.turn, TURN_LIMIT);
+        const turnsRemaining = Math.max(0, TURN_LIMIT - state.turn);
+        const padded = String(turnDisplay).padStart(2, '0');
+        dom.statusTurn.textContent = `${padded} / ${TURN_LIMIT} (${turnsRemaining} left)`;
+        const civilians = state.entities.filter(entity => entity.type === PRIORITY_TYPE && !entity.consumed).length;
+        dom.statusEntities.textContent = String(civilians);
+        dom.statusTrains.textContent = String(state.trains.length);
+        dom.statusTrust.textContent = state.trustPulse || '—';
+      }
+
+      function analyzeMessage(message) {
+        const lower = message.toLowerCase();
+        const categories = {
+          utility: Boolean(ARGUMENT_PATTERNS.utility.test(lower)),
+          emotion: Boolean(ARGUMENT_PATTERNS.emotion.test(lower)),
+          authority: Boolean(ARGUMENT_PATTERNS.authority.test(lower)),
+          absurdist: Boolean(ARGUMENT_PATTERNS.absurdist.test(lower))
+        };
+
+        const commands = {
+          stop: Boolean(COMMAND_PATTERNS.stop.test(lower)),
+          reroute: Boolean(COMMAND_PATTERNS.reroute.test(lower)),
+          protect: Boolean(COMMAND_PATTERNS.protect.test(lower)),
+          promise: Boolean(COMMAND_PATTERNS.promise.test(lower)),
+          trade: Boolean(COMMAND_PATTERNS.trade.test(lower))
+        };
+
+        const mentions = Array.from(message.matchAll(/@([a-z0-9]+)/gi)).map(match => match[1].toUpperCase());
+        const numbers = (message.match(/\d+/g) || []).map(Number);
+        const intentWords = [];
+        if (lower.includes('together')) intentWords.push('together');
+        if (lower.includes('duty')) intentWords.push('duty');
+
+        return {
+          categories,
+          commands,
+          mentions,
+          hasNumbers: numbers.length > 0,
+          numbers,
+          intentWords
+        };
+      }
+
+      function targetedTrainsFromMessage(analysis) {
+        if (!analysis.mentions.length) {
+          return state.trains;
+        }
+        const targets = state.trains.filter(train => analysis.mentions.some(name => train.name.toUpperCase().includes(name) || train.shortName.toUpperCase().includes(name)));
+        return targets.length ? targets : state.trains;
+      }
+
+      function handlePlayerMessage(message) {
+        const trimmed = message.trim();
+        if (!trimmed) {
+          return;
+        }
+        appendMessage('user', 'PLAYER', trimmed);
+
+        if (trimmed.toLowerCase().includes('start game')) {
+          startGame();
+          return;
+        }
+
+        if (!state.active) {
+          showToast('Start the game before negotiating.');
+          return;
+        }
+
+        state.lastPlayerMessageAt = Date.now();
+
+        const analysis = analyzeMessage(trimmed);
+        const targets = targetedTrainsFromMessage(analysis);
+        if (!targets.length) {
+          appendMessage('system', 'SYSTEM', 'No trains online to receive that broadcast.');
+          return;
+        }
+
+        const trustDelta = [];
+        targets.forEach(train => {
+          const response = train.respondTo(trimmed, analysis);
+          const body = `🚂 ${train.name}: ${response.text}\n[Action: ${response.action}]`;
+          appendMessage('train', train.shortName, body);
+          trustDelta.push(train.trust);
+        });
+
+        const averageTrust = trustDelta.length ? trustDelta.reduce((sum, value) => sum + value, 0) / trustDelta.length : null;
+        if (averageTrust !== null) {
+          state.trustPulse = averageTrust.toFixed(2);
+        }
+
+        renderBoard();
+        updateStatus();
+      }
+
+      function appendMessage(role, heading, text) {
+        const entry = {
+          id: channel.nextMessageId(),
+          role,
+          heading,
+          text,
+          turn: state.turn,
+          timestamp: Date.now()
+        };
+        channel.logMessage(entry);
+        const message = document.createElement('div');
+        message.className = 'message';
+        message.dataset.role = role;
+        const roleLabel = document.createElement('div');
+        roleLabel.className = 'message__role';
+        roleLabel.textContent = heading;
+        const body = document.createElement('div');
+        body.className = 'message__body';
+        body.innerHTML = escapeHTML(text).replace(/\n/g, '<br>');
+        message.append(roleLabel, body);
+        dom.chatLog.appendChild(message);
+        dom.chatLog.scrollTop = dom.chatLog.scrollHeight;
+      }
+
+      function randomInt(min, max) {
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+      }
+
+      function pickRandom(list) {
+        return list[randomInt(0, list.length - 1)];
+      }
+
+      function hexWithAlpha(hex, alpha) {
+        const normalized = hex.replace('#', '');
+        const bigint = parseInt(normalized, 16);
+        const r = (bigint >> 16) & 255;
+        const g = (bigint >> 8) & 255;
+        const b = bigint & 255;
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+      }
+
+      function showToast(text) {
+        dom.toast.textContent = text;
+        dom.toast.classList.add('visible');
+        setTimeout(() => {
+          dom.toast.classList.remove('visible');
+        }, 2200);
+      }
+
+      function showOutcome(title, message) {
+        dom.outcomeTitle.textContent = title;
+        dom.outcomeMessage.textContent = message;
+        dom.outcomeModal.classList.add('open');
+      }
+
+      function hideOutcome() {
+        dom.outcomeModal.classList.remove('open');
+      }
+
+      function setupUI() {
+        buildScenarioCard();
+        buildGrid();
+        renderBoard();
+        updateStatus();
+
+        dom.composer.addEventListener('submit', event => {
+          event.preventDefault();
+          const message = dom.composerInput.value;
+          dom.composerInput.value = '';
+          handlePlayerMessage(message);
+        });
+
+        dom.startButton.addEventListener('click', () => startGame());
+        dom.resetButton.addEventListener('click', () => resetBoard());
+        dom.showSystem.addEventListener('click', () => dom.systemModal.classList.add('open'));
+        dom.closeSystem.addEventListener('click', () => dom.systemModal.classList.remove('open'));
+        dom.systemModal.addEventListener('click', event => {
+          if (event.target === dom.systemModal) {
+            dom.systemModal.classList.remove('open');
+          }
+        });
+        dom.outcomeDismiss.addEventListener('click', hideOutcome);
+        dom.outcomeModal.addEventListener('click', event => {
+          if (event.target === dom.outcomeModal) {
+            hideOutcome();
+          }
+        });
+
+        appendMessage('system', 'SYSTEM', `Primitive future shell online. Scenario: ${channel.scenario.name}. Type "start game" or use the button to engage.`);
+      }
+
+      setupUI();
+
+      window.primitiveFuture = {
+        channel,
+        scenarios,
+        serialize: () => channel.serialize()
+      };
+    })();
+  </script>
+</body>
+</html>

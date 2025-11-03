@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PRECURSOR: Railway Junction Integration</title>
+    <meta name="description" content="Integration of train-brain-19 (full train system) + thousand-tetrad-00 (fork/chat/tetrad system)">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Courier New', monospace;
+            background: #0a0a0a;
+            color: #e0e0e0;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Layout: 70% 3D Scene, 30% Chat/Control */
+        .precursor-container {
+            display: grid;
+            grid-template-rows: 70fr 30fr;
+            height: 100vh;
+        }
+
+        /* ========== 3D SCENE AREA ========== */
+        #scene-area {
+            position: relative;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+        }
+
+        #scene-info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.9);
+            padding: 12px;
+            border: 1px solid #333;
+            border-radius: 4px;
+            font-size: 11px;
+            z-index: 10;
+        }
+
+        .info-row {
+            margin: 4px 0;
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .info-label {
+            color: #666;
+        }
+
+        .info-value {
+            color: #aef3c1;
+            font-weight: bold;
+        }
+
+        /* Track selection overlay */
+        #track-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.95);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+
+        #track-overlay.active {
+            display: flex;
+        }
+
+        .track-choice-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            padding: 40px;
+            max-width: 800px;
+        }
+
+        .track-choice {
+            background: #1a1a1a;
+            border: 3px solid;
+            padding: 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .track-choice:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 30px currentColor;
+        }
+
+        .track-choice-header {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 12px;
+            letter-spacing: 0.1em;
+        }
+
+        .track-choice-description {
+            font-size: 12px;
+            line-height: 1.5;
+            color: #999;
+        }
+
+        /* ========== CHAT/CONTROL AREA ========== */
+        #control-area {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            background: #000;
+            border-top: 2px solid #333;
+        }
+
+        /* Chat column */
+        #chat-column {
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #333;
+        }
+
+        #message-history {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            background: #0a0a0a;
+        }
+
+        #message-history::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        #message-history::-webkit-scrollbar-thumb {
+            background: #333;
+            border-radius: 3px;
+        }
+
+        .message {
+            margin-bottom: 12px;
+            padding: 12px;
+            border-radius: 6px;
+            border-left: 4px solid;
+            font-size: 12px;
+            line-height: 1.5;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.user {
+            background: rgba(174, 243, 193, 0.1);
+            border-color: #aef3c1;
+        }
+
+        .message.assistant {
+            background: rgba(86, 255, 159, 0.1);
+            border-color: #56ff9f;
+        }
+
+        .message.system {
+            background: rgba(136, 136, 136, 0.1);
+            border-color: #888;
+            font-size: 11px;
+            font-style: italic;
+        }
+
+        .message-role {
+            font-weight: bold;
+            font-size: 10px;
+            letter-spacing: 0.1em;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+        }
+
+        #input-area {
+            padding: 12px;
+            background: #000;
+            border-top: 1px solid #333;
+        }
+
+        #user-input {
+            width: 100%;
+            padding: 10px;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            color: #e0e0e0;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            resize: none;
+            border-radius: 4px;
+            margin-bottom: 8px;
+        }
+
+        #user-input:focus {
+            outline: none;
+            border-color: #aef3c1;
+        }
+
+        .input-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        button {
+            padding: 8px 16px;
+            background: #aef3c1;
+            color: #000;
+            border: none;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            font-size: 11px;
+            cursor: pointer;
+            letter-spacing: 0.05em;
+        }
+
+        button:hover {
+            background: #56ff9f;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        button.danger {
+            background: #ff5c7c;
+            color: white;
+        }
+
+        button.danger:hover {
+            background: #ff3d4e;
+        }
+
+        /* Decision panel */
+        #decision-panel {
+            display: flex;
+            flex-direction: column;
+            padding: 16px;
+            background: #0a0a0a;
+        }
+
+        .panel-section {
+            margin-bottom: 16px;
+        }
+
+        .panel-title {
+            font-size: 11px;
+            font-weight: bold;
+            color: #666;
+            margin-bottom: 8px;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+
+        /* Tetrad chips */
+        #tetrad-chips {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .tetrad-chip {
+            padding: 10px;
+            background: #1a1a1a;
+            border: 2px solid;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 10px;
+        }
+
+        .tetrad-chip:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 15px currentColor;
+        }
+
+        .tetrad-chip.enhance { border-color: #56ff9f; color: #56ff9f; }
+        .tetrad-chip.reverse { border-color: #ff5c7c; color: #ff5c7c; }
+        .tetrad-chip.retrieve { border-color: #569fff; color: #569fff; }
+        .tetrad-chip.obsolesce { border-color: #888888; color: #888888; }
+
+        .chip-label {
+            font-weight: bold;
+            margin-bottom: 4px;
+            letter-spacing: 0.05em;
+        }
+
+        .chip-text {
+            font-size: 9px;
+            color: #999;
+            line-height: 1.3;
+        }
+
+        /* Track status */
+        #track-status {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+
+        .track-indicator {
+            flex: 1;
+            min-width: 0;
+            padding: 6px;
+            background: #1a1a1a;
+            border: 2px solid;
+            border-radius: 4px;
+            text-align: center;
+            font-size: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .track-indicator:hover {
+            transform: scale(1.05);
+        }
+
+        .track-indicator.active {
+            box-shadow: 0 0 20px currentColor;
+        }
+
+        /* Status indicator */
+        #status-text {
+            font-size: 10px;
+            color: #666;
+            text-align: center;
+            padding: 8px;
+            background: #000;
+            border: 1px solid #333;
+            border-radius: 4px;
+        }
+
+        .status-waiting { color: #fbbf24; }
+        .status-thinking { color: #56ff9f; }
+        .status-junction { color: #ff5c7c; }
+    </style>
+</head>
+<body>
+    <div class="precursor-container">
+        <!-- 3D Scene Area (70%) -->
+        <div id="scene-area">
+            <div id="scene-info">
+                <div class="info-row">
+                    <span class="info-label">Train Position:</span>
+                    <span class="info-value" id="position-value">0%</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Current Track:</span>
+                    <span class="info-value" id="track-value">MAIN</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Junctions Passed:</span>
+                    <span class="info-value" id="junction-value">0</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Messages:</span>
+                    <span class="info-value" id="message-value">0</span>
+                </div>
+            </div>
+
+            <!-- Track Choice Overlay -->
+            <div id="track-overlay">
+                <div class="track-choice-grid" id="track-choices">
+                    <!-- Filled dynamically -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat/Control Area (30%) -->
+        <div id="control-area">
+            <!-- Chat Column (2/3) -->
+            <div id="chat-column">
+                <div id="message-history">
+                    <div class="message system">
+                        <div class="message-role">SYSTEM</div>
+                        <div>PRECURSOR Integration: train-brain-19 (full train) + thousand-tetrad-00 (fork/chat system).
+                        <br><br>5 concentric tracks visible. At junctions, tetrad analysis generates 4 possible forks.
+                        <br><br>Ready to begin.</div>
+                    </div>
+                </div>
+                
+                <div id="input-area">
+                    <textarea id="user-input" rows="2" placeholder="Type your message..."></textarea>
+                    <div class="input-buttons">
+                        <button id="send-btn">Send</button>
+                        <button id="generate-tetrad-btn">Generate Tetrad</button>
+                        <button id="reset-btn" class="danger">Reset</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Decision Panel (1/3) -->
+            <div id="decision-panel">
+                <div class="panel-section">
+                    <div class="panel-title">Tetrad Forks</div>
+                    <div id="tetrad-chips">
+                        <div class="tetrad-chip enhance" data-mode="enhance">
+                            <div class="chip-label">ENHANCE</div>
+                            <div class="chip-text">What does it amplify?</div>
+                        </div>
+                        <div class="tetrad-chip reverse" data-mode="reverse">
+                            <div class="chip-label">REVERSE</div>
+                            <div class="chip-text">What does it flip?</div>
+                        </div>
+                        <div class="tetrad-chip retrieve" data-mode="retrieve">
+                            <div class="chip-label">RETRIEVE</div>
+                            <div class="chip-text">What does it revive?</div>
+                        </div>
+                        <div class="tetrad-chip obsolesce" data-mode="obsolesce">
+                            <div class="chip-label">OBSOLESCE</div>
+                            <div class="chip-text">What does it replace?</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel-section">
+                    <div class="panel-title">Active Tracks</div>
+                    <div id="track-status">
+                        <div class="track-indicator active" data-track="main" style="border-color: #ffffff; color: #ffffff;">MAIN</div>
+                        <div class="track-indicator" data-track="enhance" style="border-color: #56ff9f; color: #56ff9f;">ENH</div>
+                        <div class="track-indicator" data-track="reverse" style="border-color: #ff5c7c; color: #ff5c7c;">REV</div>
+                        <div class="track-indicator" data-track="retrieve" style="border-color: #569fff; color: #569fff;">RET</div>
+                        <div class="track-indicator" data-track="obsolesce" style="border-color: #888888; color: #888888;">OBS</div>
+                    </div>
+                </div>
+
+                <div class="panel-section">
+                    <div id="status-text">Ready</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
+    
+    <!-- CORE Systems (inline for precursor) -->
+    <script src="CORE-train-brain.js"></script>
+    <script src="CORE-thousand-tetrad.js"></script>
+
+    <script>
+        // ========================================
+        // INTEGRATION PRECURSOR
+        // ========================================
+        
+        console.log('🚂 PRECURSOR: Integrating train-brain + thousand-tetrad cores...');
+        
+        // Global state
+        const state = {
+            scene: null,
+            camera: null,
+            renderer: null,
+            controls: null,
+            trains: new Map(), // trackId -> train object
+            tracks: new Map(), // trackId -> track config
+            currentChannel: null,
+            channels: new Map(),
+            currentTrack: 'main',
+            junctionsPassed: 0,
+            apiKey: null // TODO: Add API key management
+        };
+
+        // Track configurations (5 concentric)
+        const TRACK_CONFIGS = {
+            main: { radius: 30, color: 0xffffff, label: 'MAIN LINE' },
+            enhance: { radius: 35, color: 0x56ff9f, label: 'ENHANCE SPUR' },
+            reverse: { radius: 25, color: 0xff5c7c, label: 'REVERSE JUNCTION' },
+            retrieve: { radius: 40, color: 0x569fff, label: 'RETRIEVE OVERPASS' },
+            obsolesce: { radius: 20, color: 0x888888, label: 'OBSOLESCE UNDERPASS' }
+        };
+
+        // ========================================
+        // INITIALIZE
+        // ========================================
+        
+        function init() {
+            initScene();
+            initChannel();
+            setupEventListeners();
+            animate();
+        }
+
+        function initScene() {
+            const container = document.getElementById('scene-area');
+            
+            // Scene
+            state.scene = new THREE.Scene();
+            state.scene.background = new THREE.Color(0x0a0a0a);
+            state.scene.fog = new THREE.Fog(0x0a0a0a, 50, 200);
+            
+            // Camera
+            state.camera = new THREE.PerspectiveCamera(
+                60,
+                container.clientWidth / container.clientHeight,
+                0.1,
+                1000
+            );
+            state.camera.position.set(60, 60, 60);
+            
+            // Renderer
+            state.renderer = new THREE.WebGLRenderer({ antialias: true });
+            state.renderer.setSize(container.clientWidth, container.clientHeight);
+            state.renderer.shadowMap.enabled = true;
+            container.appendChild(state.renderer.domElement);
+            
+            // Controls
+            state.controls = new THREE.OrbitControls(state.camera, state.renderer.domElement);
+            state.controls.enableDamping = true;
+            state.controls.target.set(0, 0, 0);
+            
+            // Lights
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
+            state.scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(50, 50, 50);
+            directionalLight.castShadow = true;
+            state.scene.add(directionalLight);
+            
+            // Ground
+            const groundGeometry = new THREE.PlaneGeometry(200, 200);
+            const groundMaterial = new THREE.MeshLambertMaterial({ color: 0x1a1a1a });
+            const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            state.scene.add(ground);
+            
+            // Create 5 concentric tracks using CORE-train-brain
+            Object.entries(TRACK_CONFIGS).forEach(([trackId, config]) => {
+                const trackData = CORE_TRAIN.createTrackGeometry(state.scene, config.radius);
+                state.tracks.set(trackId, {
+                    ...config,
+                    ...trackData
+                });
+            });
+            
+            // Create main train using CORE-train-brain
+            const trainCars = [];
+            const mainTrain = CORE_TRAIN.addTrainCar(state.scene, trainCars, true); // Locomotive
+            CORE_TRAIN.addTrainCar(state.scene, trainCars, false, 'Print');
+            CORE_TRAIN.addTrainCar(state.scene, trainCars, false, 'Radio');
+            CORE_TRAIN.addTrainCar(state.scene, trainCars, false, 'Television');
+            CORE_TRAIN.addTrainCar(state.scene, trainCars, false, 'Internet');
+            
+            state.trains.set('main', {
+                cars: trainCars,
+                position: 0,
+                trackId: 'main'
+            });
+            
+            console.log('✅ Scene initialized with 5 tracks and full train');
+        }
+
+        function initChannel() {
+            state.currentChannel = CORE_TETRAD.createChannel();
+            state.channels.set(state.currentChannel.id, state.currentChannel);
+            console.log('✅ Channel initialized');
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // Update train position
+            const mainTrain = state.trains.get(state.currentTrack);
+            if (mainTrain) {
+                mainTrain.position += 0.0005;
+                if (mainTrain.position >= 1) mainTrain.position = 0;
+                
+                const track = state.tracks.get(mainTrain.trackId);
+                const point = track.trainPathCurve.getPoint(mainTrain.position);
+                
+                // Update all cars
+                mainTrain.cars.forEach((carData, idx) => {
+                    const carPoint = track.trainPathCurve.getPoint((mainTrain.position - idx * 0.05 + 1) % 1);
+                    carData.group.position.set(carPoint.x, carData.group.position.y, carPoint.y);
+                    
+                    // Look ahead
+                    const lookAhead = track.trainPathCurve.getPoint((mainTrain.position - idx * 0.05 + 0.01 + 1) % 1);
+                    carData.group.lookAt(lookAhead.x, carData.group.position.y, lookAhead.y);
+                    carData.group.rotateY(Math.PI / 2);
+                    
+                    // Rotate wheels
+                    carData.wheels.forEach(wheel => {
+                        wheel.rotation.z += 0.05;
+                    });
+                });
+                
+                // Update UI
+                document.getElementById('position-value').textContent = 
+                    Math.floor(mainTrain.position * 100) + '%';
+            }
+            
+            state.controls.update();
+            state.renderer.render(state.scene, state.camera);
+        }
+
+        // ========================================
+        // EVENT HANDLERS
+        // ========================================
+        
+        function setupEventListeners() {
+            document.getElementById('send-btn').addEventListener('click', sendMessage);
+            document.getElementById('generate-tetrad-btn').addEventListener('click', generateTetrad);
+            document.getElementById('reset-btn').addEventListener('click', reset);
+            
+            document.getElementById('user-input').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                }
+            });
+            
+            // Tetrad chip clicks
+            document.querySelectorAll('.tetrad-chip').forEach(chip => {
+                chip.addEventListener('click', () => {
+                    const mode = chip.dataset.mode;
+                    forkChannel(mode);
+                });
+            });
+            
+            // Track indicator clicks
+            document.querySelectorAll('.track-indicator').forEach(indicator => {
+                indicator.addEventListener('click', () => {
+                    const track = indicator.dataset.track;
+                    switchTrack(track);
+                });
+            });
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('user-input');
+            const text = input.value.trim();
+            if (!text) return;
+            
+            CORE_TETRAD.addMessage(state.currentChannel, 'user', text);
+            input.value = '';
+            
+            renderMessages();
+            updateMessageCount();
+            
+            // TODO: Call OpenAI for assistant response
+            setTimeout(() => {
+                CORE_TETRAD.addMessage(state.currentChannel, 'assistant', 
+                    'Response from AI (OpenAI integration pending)');
+                renderMessages();
+            }, 500);
+        }
+
+        function generateTetrad() {
+            document.getElementById('status-text').textContent = 'Generating tetrad...';
+            document.getElementById('status-text').className = 'status-thinking';
+            
+            // TODO: Call OpenAI tetrad generation
+            setTimeout(() => {
+                // Mock tetrad
+                state.currentChannel.tetrad = {
+                    enhance: { text: 'This amplifies connection.', score: 0.8 },
+                    reverse: { text: 'This flips into isolation.', score: 0.7 },
+                    retrieve: { text: 'This brings back oral tradition.', score: 0.6 },
+                    obsolesce: { text: 'This replaces printed media.', score: 0.9 }
+                };
+                
+                updateTetradChips();
+                document.getElementById('status-text').textContent = 'Tetrad ready';
+                document.getElementById('status-text').className = '';
+            }, 1000);
+        }
+
+        function forkChannel(mode) {
+            const newChannel = CORE_TETRAD.forkChannel(state.currentChannel, null, mode);
+            state.channels.set(newChannel.id, newChannel);
+            state.currentChannel = newChannel;
+            
+            CORE_TETRAD.addMessage(newChannel, 'system', `Forked to ${mode.toUpperCase()} track`);
+            renderMessages();
+            
+            console.log('Forked to', mode, newChannel);
+        }
+
+        function switchTrack(trackId) {
+            state.currentTrack = trackId;
+            document.getElementById('track-value').textContent = TRACK_CONFIGS[trackId].label;
+            
+            document.querySelectorAll('.track-indicator').forEach(ind => {
+                ind.classList.toggle('active', ind.dataset.track === trackId);
+            });
+            
+            const mainTrain = state.trains.get('main');
+            mainTrain.trackId = trackId;
+            mainTrain.position = 0;
+        }
+
+        function reset() {
+            state.junctionsPassed = 0;
+            document.getElementById('junction-value').textContent = '0';
+            initChannel();
+            renderMessages();
+        }
+
+        function renderMessages() {
+            const container = document.getElementById('message-history');
+            CORE_TETRAD.renderMessages(state.currentChannel, container);
+        }
+
+        function updateMessageCount() {
+            document.getElementById('message-value').textContent = 
+                state.currentChannel.messages.length;
+        }
+
+        function updateTetradChips() {
+            if (!state.currentChannel.tetrad) return;
+            
+            const tetrad = state.currentChannel.tetrad;
+            document.querySelectorAll('.tetrad-chip').forEach(chip => {
+                const mode = chip.dataset.mode;
+                const entry = tetrad[mode];
+                if (entry) {
+                    chip.querySelector('.chip-text').textContent = entry.text;
+                }
+            });
+        }
+
+        // ========================================
+        // START
+        // ========================================
+        
+        window.addEventListener('DOMContentLoaded', init);
+        
+        console.log('🧬 PRECURSOR loaded. CORE systems integrated.');
+    </script>
+</body>
+</html>

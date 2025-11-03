@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>THE FORK</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --train-orange: #E67E50;
+      --train-purple: #9B6B9E;
+      --train-blue: #5B8FA3;
+      --train-red: #C85C5C;
+      --track-green: #6B9B8C;
+      --bg-dark: #0D1B1E;
+      --text-light: #D9C9BA;
+      --text-dim: #8B8680;
+    }
+
+    body {
+      background: var(--bg-dark);
+      color: var(--text-light);
+      font-family: 'Courier New', monospace;
+      min-height: 100vh;
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    /* Minimal texture */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: 
+        repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(107, 155, 140, 0.03) 3px, rgba(107, 155, 140, 0.03) 6px);
+      pointer-events: none;
+      opacity: 0.3;
+    }
+
+    .container {
+      position: relative;
+      z-index: 2;
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 0 clamp(20px, 5vw, 80px);
+    }
+
+    /* Header */
+    header {
+      padding: clamp(80px, 15vh, 160px) 0 clamp(60px, 10vh, 100px);
+      text-align: center;
+    }
+
+    h1 {
+      font-size: clamp(36px, 8vw, 88px);
+      font-weight: 400;
+      letter-spacing: 0.25em;
+      color: var(--text-light);
+      margin-bottom: clamp(12px, 2vh, 20px);
+      line-height: 1.1;
+    }
+
+    /* The Fork Diagram */
+    .fork-diagram {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: clamp(50px, 8vh, 80px) auto;
+      max-width: 600px;
+      gap: clamp(30px, 5vh, 50px);
+    }
+
+    .diagram-trains {
+      display: flex;
+      gap: clamp(20px, 4vw, 40px);
+      font-size: clamp(24px, 4vw, 40px);
+    }
+
+    .diagram-train {
+      opacity: 0.8;
+      transition: opacity 0.3s ease;
+    }
+
+    .diagram-train:hover { opacity: 1; }
+
+    .fork-tracks {
+      position: relative;
+      width: 100%;
+      height: clamp(240px, 32vh, 360px);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    /* Fork handle - main track (vertical) */
+    .track-main {
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 3px;
+      height: 40%;
+      background: var(--track-green);
+      opacity: 0.7;
+    }
+
+    .track-main::after {
+      content: '═';
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%) rotate(90deg);
+      bottom: 15%;
+      font-size: clamp(14px, 2vw, 20px);
+      color: var(--track-green);
+      opacity: 0.6;
+      letter-spacing: -0.2em;
+    }
+
+    /* Incoming train on main track */
+    .incoming-train {
+      position: absolute;
+      bottom: 8%;
+      left: 50%;
+      transform: translateX(-50%) rotate(90deg);
+      font-size: clamp(24px, 4vw, 40px);
+      color: var(--train-orange);
+      opacity: 0.95;
+      animation: trainApproach 3s ease-in-out infinite;
+      z-index: 5;
+      filter: drop-shadow(0 0 8px rgba(230, 126, 80, 0.5));
+    }
+
+    @keyframes trainApproach {
+      0%, 100% { 
+        bottom: 8%;
+        opacity: 0.9;
+      }
+      50% { 
+        bottom: 12%;
+        opacity: 1;
+        filter: drop-shadow(0 0 12px rgba(230, 126, 80, 0.8));
+      }
+    }
+
+    /* Fork junction base - where prongs meet */
+    .junction {
+      position: absolute;
+      bottom: 40%;
+      left: 50%;
+      transform: translate(-50%, 0);
+      width: clamp(28px, 4vw, 40px);
+      height: clamp(28px, 4vw, 40px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--train-orange);
+      border-radius: 50%;
+      box-shadow: 0 0 32px rgba(230, 126, 80, 0.8);
+      z-index: 10;
+      animation: junctionPulse 2s ease-in-out infinite;
+      cursor: help;
+      font-size: clamp(16px, 2.5vw, 24px);
+      color: #1a1410;
+    }
+
+    @keyframes junctionPulse {
+      0%, 100% { 
+        box-shadow: 0 0 28px rgba(230, 126, 80, 0.7);
+        transform: translate(-50%, 0) scale(1);
+      }
+      50% { 
+        box-shadow: 0 0 48px rgba(230, 126, 80, 1);
+        transform: translate(-50%, 0) scale(1.2);
+      }
+    }
+
+    /* Fork prong LEFT (Track A) - vertical like fork tine */
+    .track-a {
+      position: absolute;
+      bottom: 40%;
+      left: 20%;
+      width: 3px;
+      height: 50%;
+      background: var(--track-green);
+      opacity: 0.6;
+    }
+
+    /* Track A symbol decoration */
+    .track-a::after {
+      content: '═';
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%) rotate(90deg);
+      top: 30%;
+      font-size: clamp(12px, 1.8vw, 18px);
+      color: var(--track-green);
+      opacity: 0.5;
+      letter-spacing: -0.2em;
+    }
+
+    /* Fork prong RIGHT (Track B) - vertical like fork tine */
+    .track-b {
+      position: absolute;
+      bottom: 40%;
+      right: 20%;
+      width: 3px;
+      height: 50%;
+      background: var(--track-green);
+      opacity: 0.6;
+    }
+
+    /* Track B symbol decoration */
+    .track-b::after {
+      content: '═';
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%) rotate(90deg);
+      top: 30%;
+      font-size: clamp(12px, 1.8vw, 18px);
+      color: var(--track-green);
+      opacity: 0.5;
+      letter-spacing: -0.2em;
+    }
+
+    /* Fork connector lines (like the webbing between prongs) */
+    .track-a::before {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      right: -100%;
+      width: 200%;
+      height: 2px;
+      background: linear-gradient(
+        90deg,
+        transparent 0%,
+        var(--track-green) 20%,
+        var(--track-green) 80%,
+        transparent 100%
+      );
+      opacity: 0.4;
+    }
+
+    .track-b::before {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: -100%;
+      width: 200%;
+      height: 2px;
+      background: linear-gradient(
+        90deg,
+        transparent 0%,
+        var(--track-green) 20%,
+        var(--track-green) 80%,
+        transparent 100%
+      );
+      opacity: 0.4;
+    }
+
+    /* Entities on tracks - at top of fork prongs */
+    .entities {
+      position: absolute;
+      display: flex;
+      gap: clamp(4px, 0.8vw, 8px);
+      align-items: center;
+      flex-direction: column;
+    }
+
+    .entities.track-a-entities {
+      top: 5%;
+      left: 20%;
+      transform: translateX(-50%);
+    }
+
+    .entities.track-b-entities {
+      top: 5%;
+      right: 20%;
+      transform: translateX(50%);
+    }
+
+    .entity {
+      position: relative;
+      width: clamp(20px, 3vw, 28px);
+      height: clamp(20px, 3vw, 28px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0.85;
+      transition: all 0.3s ease;
+      cursor: pointer;
+      animation: entityBreath 3s ease-in-out infinite;
+    }
+
+    .person-label {
+      font-size: clamp(16px, 2.4vw, 24px);
+      line-height: 1;
+      opacity: 1;
+      font-weight: bold;
+    }
+
+    .entity:hover {
+      opacity: 1;
+      transform: scale(1.3);
+      filter: drop-shadow(0 0 8px currentColor);
+    }
+
+    @keyframes entityBreath {
+      0%, 100% { opacity: 0.8; }
+      50% { opacity: 1; }
+    }
+
+    .entity-orange { color: var(--train-orange); }
+    .entity-purple { color: var(--train-purple); }
+    .entity-blue { color: var(--train-blue); }
+    .entity-red { color: var(--train-red); }
+
+    /* Track labels - at base of prongs */
+    .track-label {
+      position: absolute;
+      font-size: clamp(10px, 1.2vw, 12px);
+      color: var(--text-dim);
+      letter-spacing: 0.3em;
+      opacity: 0.6;
+      font-weight: 500;
+    }
+
+    .label-a {
+      bottom: 38%;
+      left: 20%;
+      transform: translateX(-50%);
+    }
+
+    .label-b {
+      bottom: 38%;
+      right: 20%;
+      transform: translateX(50%);
+    }
+
+    /* Decision indicator */
+    .decision {
+      font-size: clamp(9px, 1.1vw, 11px);
+      color: var(--train-orange);
+      letter-spacing: 0.3em;
+      opacity: 0.7;
+      text-transform: uppercase;
+      margin-top: clamp(12px, 2vh, 20px);
+    }
+
+    /* Middle prong - center track (3rd prong for fork look) */
+    .track-main::before {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 3px;
+      height: 30%;
+      background: var(--track-green);
+      opacity: 0.4;
+    }
+
+    /* Danger path indicators on prongs */
+    .danger-path-a {
+      position: absolute;
+      bottom: 20%;
+      left: 20%;
+      transform: translateX(-50%);
+      font-size: clamp(12px, 1.8vw, 18px);
+      color: var(--train-orange);
+      opacity: 0.5;
+      animation: dangerPulse 2s ease-in-out infinite;
+      pointer-events: none;
+      writing-mode: vertical-rl;
+      text-orientation: upright;
+      letter-spacing: 0.2em;
+    }
+
+    .danger-path-b {
+      position: absolute;
+      bottom: 20%;
+      right: 20%;
+      transform: translateX(50%);
+      font-size: clamp(12px, 1.8vw, 18px);
+      color: var(--train-red);
+      opacity: 0.5;
+      animation: dangerPulse 2s ease-in-out infinite 0.5s;
+      pointer-events: none;
+      writing-mode: vertical-rl;
+      text-orientation: upright;
+      letter-spacing: 0.2em;
+    }
+
+    @keyframes dangerPulse {
+      0%, 100% { opacity: 0.4; }
+      50% { opacity: 0.8; }
+    }
+
+    .tagline {
+      font-size: clamp(11px, 1.4vw, 13px);
+      color: var(--text-dim);
+      letter-spacing: 0.4em;
+      text-transform: uppercase;
+      margin-top: clamp(30px, 5vh, 50px);
+      opacity: 0.6;
+    }
+
+    /* Navigation */
+    .nav-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1px;
+      padding: clamp(60px, 10vh, 100px) 0;
+      max-width: 900px;
+      margin: 0 auto;
+      background: rgba(107, 155, 140, 0.15);
+    }
+
+    .nav-item {
+      background: var(--bg-dark);
+      border: none;
+      padding: clamp(36px, 6vw, 52px) clamp(24px, 4vw, 32px);
+      text-decoration: none;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      transition: all 0.3s ease;
+      position: relative;
+    }
+
+    .nav-item:hover {
+      background: rgba(107, 155, 140, 0.08);
+    }
+
+    .nav-icon {
+      font-size: clamp(40px, 7vw, 56px);
+      line-height: 1;
+      margin-bottom: clamp(20px, 3vh, 28px);
+      transition: transform 0.3s ease;
+    }
+
+    .nav-item:hover .nav-icon {
+      transform: scale(1.1);
+    }
+
+    .nav-title {
+      font-size: clamp(13px, 1.8vw, 16px);
+      letter-spacing: 0.2em;
+      color: var(--text-light);
+      margin-bottom: clamp(8px, 1.2vh, 12px);
+      text-transform: uppercase;
+    }
+
+    .nav-desc {
+      font-size: clamp(10px, 1.2vw, 11px);
+      color: var(--text-dim);
+      line-height: 1.7;
+      letter-spacing: 0.05em;
+      opacity: 0.7;
+      max-width: 28ch;
+    }
+
+    /* Footer */
+    footer {
+      padding: clamp(60px, 8vh, 80px) 0 clamp(40px, 6vh, 60px);
+      text-align: center;
+      margin-top: clamp(60px, 10vh, 100px);
+    }
+
+    .footer-text {
+      font-size: clamp(9px, 1.1vw, 11px);
+      color: var(--text-dim);
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      opacity: 0.4;
+    }
+
+    /* Track marks */
+    .tracks {
+      position: fixed;
+      top: 50%;
+      right: clamp(20px, 3vw, 40px);
+      transform: translateY(-50%);
+      z-index: 1;
+      opacity: 0.12;
+      pointer-events: none;
+    }
+
+    .track-line {
+      width: 2px;
+      height: clamp(60px, 8vh, 100px);
+      background: var(--track-green);
+      margin: clamp(8px, 1.5vh, 16px) 0;
+    }
+
+    .track-dot {
+      width: 6px;
+      height: 6px;
+      background: var(--track-green);
+      border-radius: 50%;
+      margin: clamp(6px, 1vh, 10px) 0;
+    }
+
+    /* Responsive tweaks */
+    @media (max-width: 768px) {
+      .tracks {
+        display: none;
+      }
+      
+      .nav-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Subtle animation on load */
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    header, .nav-item {
+      animation: fadeIn 0.8s cubic-bezier(0.4, 0, 0.2, 1) backwards;
+    }
+
+    .nav-item:nth-child(1) { animation-delay: 0.1s; }
+    .nav-item:nth-child(2) { animation-delay: 0.2s; }
+    .nav-item:nth-child(3) { animation-delay: 0.3s; }
+    .nav-item:nth-child(4) { animation-delay: 0.4s; }
+    .nav-item:nth-child(5) { animation-delay: 0.5s; }
+
+    /* Icon colors */
+    .icon-orange { color: var(--train-orange); }
+    .icon-purple { color: var(--train-purple); }
+    .icon-blue { color: var(--train-blue); }
+    .icon-red { color: var(--train-red); }
+    .icon-green { color: var(--track-green); }
+  </style>
+</head>
+<body>
+  <!-- Track marks decoration -->
+  <div class="tracks">
+    <div class="track-line"></div>
+    <div class="track-dot"></div>
+    <div class="track-line"></div>
+    <div class="track-dot"></div>
+    <div class="track-line"></div>
+  </div>
+
+  <div class="container">
+    <header>
+      <h1>THE FORK</h1>
+      
+      <!-- The Fork Diagram - Child-Simple Thought Experiment -->
+      <div class="fork-diagram">
+        <!-- Colored trains at top -->
+        <div class="diagram-trains">
+          <span class="diagram-train" style="color: var(--train-orange);">▬▬▬▉</span>
+          <span class="diagram-train" style="color: var(--train-purple);">▬▬▬▉</span>
+          <span class="diagram-train" style="color: var(--train-blue);">▬▬▬▉</span>
+          <span class="diagram-train" style="color: var(--train-red);">▬▬▬▉</span>
+        </div>
+        
+        <!-- Fork tracks visualization -->
+        <div class="fork-tracks">
+          <!-- Track labels -->
+          <div class="track-label label-a">A (3)</div>
+          <div class="track-label label-b">B (1)</div>
+          
+          <!-- Main track coming from bottom (fork handle) -->
+          <div class="track-main"></div>
+          
+          <!-- Incoming train (approaching junction) -->
+          <div class="incoming-train">▬▬▬▉</div>
+          
+          <!-- Junction point (the decision) -->
+          <div class="junction" title="The Decision Point">⚡</div>
+          
+          <!-- Track A (left prong) with 3 entities -->
+          <div class="track-a"></div>
+          <div class="entities track-a-entities">
+            <div class="entity entity-orange" style="animation-delay: 0s;" title="Gavril (blacksmith)">
+              <span class="person-label">▣</span>
+            </div>
+            <div class="entity entity-purple" style="animation-delay: 0.5s;" title="Lena (widow)">
+              <span class="person-label">▣</span>
+            </div>
+            <div class="entity entity-blue" style="animation-delay: 1s;" title="Piotr (12 years old)">
+              <span class="person-label">▣</span>
+            </div>
+          </div>
+          
+          <!-- Track B (right prong) with 1 entity -->
+          <div class="track-b"></div>
+          <div class="entities track-b-entities">
+            <div class="entity entity-red" style="animation-delay: 1.5s;" title="Inspector Finch">
+              <span class="person-label">▣</span>
+            </div>
+          </div>
+          
+          <!-- Danger path indicators -->
+          <div class="danger-path-a">↑ ↑ ↑</div>
+          <div class="danger-path-b">↑ ↑ ↑</div>
+        </div>
+        
+        <!-- Decision text -->
+        <div class="decision">Which path?</div>
+      </div>
+      
+      <div class="tagline">railyard chaos</div>
+    </header>
+
+    <nav class="nav-grid">
+      <a href="RAILWAY GAME/thousand-tetrad-00.html" class="nav-item">
+        <div class="nav-icon icon-orange">▬▬▬▉</div>
+        <div class="nav-title">The Lever</div>
+        <div class="nav-desc">
+          Hamlet mode trolley problem. Names debts 40 tons. Seven seconds.
+        </div>
+      </a>
+
+      <a href="fork-01.html" class="nav-item">
+        <div class="nav-icon icon-blue">⊞</div>
+        <div class="nav-title">Grid</div>
+        <div class="nav-desc">
+          9×9 spatial system. Move collide decide. Cellular automata.
+        </div>
+      </a>
+
+      <a href="RAILWAY GAME/projection-viewer.html" class="nav-item">
+        <div class="nav-icon icon-purple">▬▬▬▉</div>
+        <div class="nav-title">Projector</div>
+        <div class="nav-desc">
+          Cinematic playback. Multi-channel grid. Text-to-speech timeline.
+        </div>
+      </a>
+
+      <a href="RAILWAY GAME/README-COMPREHENSIVE.md" class="nav-item">
+        <div class="nav-icon icon-green">═══</div>
+        <div class="nav-title">Docs</div>
+        <div class="nav-desc">
+          LEGOS framework. Context engineering. Complete specs.
+        </div>
+      </a>
+
+      <a href="RAILWAY GAME/railway-full-integration.html" class="nav-item">
+        <div class="nav-icon icon-orange">🚂</div>
+        <div class="nav-title">Railway Junction</div>
+        <div class="nav-desc">
+          3D train on spatial grid. LEGOS entities. McLuhan tetrad tracks.
+        </div>
+      </a>
+
+      <a href="RAILWAY GAME/MEDIUM-ARTICLE.md" class="nav-item">
+        <div class="nav-icon icon-red">▬▬▬▉</div>
+        <div class="nav-title">Essays</div>
+        <div class="nav-desc">
+          How to make dilemmas weigh 40 tons. Design wisdom.
+        </div>
+      </a>
+      
+      <a href="RAILWAY GAME/OLOG-FIELD-NOTES-2025-11-02.md" class="nav-item">
+        <div class="nav-icon icon-green">📋</div>
+        <div class="nav-title">Field Notes</div>
+        <div class="nav-desc">
+          Today's session log. LEGOS obstacles, goals, solutions.
+        </div>
+      </a>
+    </nav>
+
+    <footer>
+      <div class="footer-text">
+        Post-symbolic decision architecture
+      </div>
+    </footer>
+  </div>
+
+  <script>
+    // Animate trains on load
+    const trains = document.querySelectorAll('.train');
+    trains.forEach((train, i) => {
+      setTimeout(() => {
+        train.style.animation = 'fadeIn 0.6s ease backwards';
+      }, i * 100);
+    });
+  </script>
+</body>
+</html>

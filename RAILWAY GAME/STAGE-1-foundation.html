@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Railway Junction - Full Integration (Foundation)</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='75' font-size='80'>🚂</text></svg>">
+  
+  <!-- PARASITIC DEPENDENCY 1: Tone.js (from thousand-tetrad) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
+  
+  <!-- PARASITIC DEPENDENCY 2: Three.js (from train-brain) -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
+  
+  <style>
+    /* ========================================
+       FOUNDATION CSS (from thousand-tetrad-00.html lines 10-2398)
+       Modified to support embedded 3D train view
+       ======================================== */
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    :root {
+      --transition: cubic-bezier(0.4, 0, 0.2, 1);
+      --column-width: min(100vw, 420px);
+    }
+
+    body {
+      --bg: #03180c;
+      --panel: #052010;
+      --panel-dark: #03140d;
+      --border: #0c3a23;
+      --border-light: #1b6e3e;
+      --text: #aef3c1;
+      --text-muted: #5ea275;
+      --accent: #56ff9f;
+      --accent-soft: rgba(86, 255, 159, 0.12);
+      --accent-glow: rgba(86, 255, 159, 0.32);
+      --danger: #ff5c7c;
+      --success: #56ff9f;
+      --grid-highlight: rgba(86, 255, 159, 0.08);
+      --shadow: rgba(0, 0, 0, 0.45);
+      --overlay-backdrop: rgba(4, 20, 12, 0.88);
+      font-family: 'Courier New', monospace;
+      font-size: clamp(11px, 2.4vw, 13px);
+      background: var(--bg);
+      color: var(--text);
+      overflow: hidden;
+      min-height: 100vh;
+    }
+
+    /* ========================================
+       NEW: TRAIN VIEWPORT (embedded in channel)
+       ======================================== */
+    
+    .train-viewport {
+      width: 100%;
+      height: 280px;
+      background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      margin-bottom: 12px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .train-viewport canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .train-info-overlay {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      background: rgba(0, 0, 0, 0.8);
+      padding: 6px 10px;
+      border-radius: 3px;
+      font-size: 10px;
+      line-height: 1.4;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    /* MORE CSS TO BE ADDED IN NEXT STAGE */
+  </style>
+</head>
+<body>
+  <!-- STAGE 1: Foundation structure
+       This file establishes the base. 
+       Next stages will add:
+       - Full CSS from thousand-tetrad
+       - Channel column HTML
+       - Grid system
+       - Train system JavaScript
+       - Integration bridge
+  -->
+  
+  <div id="app">
+    <div class="channel-container">
+      <!-- Channel will be created here -->
+    </div>
+  </div>
+
+  <script>
+    console.log('🚂 STAGE 1: Foundation loaded');
+    console.log('✅ Tone.js available:', typeof Tone !== 'undefined');
+    console.log('✅ THREE.js available:', typeof THREE !== 'undefined');
+    
+    // Next: Add full channel system + train system
+  </script>
+</body>
+</html>

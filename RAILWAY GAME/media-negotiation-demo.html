@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Media Negotiation: The Trolley Problem as Rhetorical Fork</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: #0a0a0a;
+            color: #e0e0e0;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        /* 3-Layer Layout */
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        /* Layer 1: 3D Railway Scene (60%) */
+        #scene-container {
+            flex: 0 0 60%;
+            position: relative;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+        }
+
+        #junction-status {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 61, 78, 0.9);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-weight: bold;
+            letter-spacing: 0.1em;
+            z-index: 100;
+            display: none;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.9; transform: translateX(-50%) scale(1); }
+            50% { opacity: 1; transform: translateX(-50%) scale(1.05); }
+        }
+
+        /* Layer 2: Media Broadcast Competition (30%) */
+        #media-broadcasts {
+            flex: 0 0 30%;
+            background: #0d0d0d;
+            border-top: 2px solid #333;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .broadcasts-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            height: 100%;
+            gap: 2px;
+            background: #000;
+        }
+
+        .media-channel {
+            background: var(--channel-bg);
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .media-channel::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--channel-color);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .media-channel:hover::before {
+            opacity: 1;
+        }
+
+        .media-channel.selected {
+            border: 3px solid var(--channel-color);
+            box-shadow: 0 0 30px var(--channel-glow);
+            transform: scale(1.02);
+            z-index: 10;
+        }
+
+        .media-channel.selected::before {
+            opacity: 1;
+            height: 8px;
+        }
+
+        /* Print Channel */
+        .channel-print {
+            --channel-color: #8B4513;
+            --channel-bg: #1a1410;
+            --channel-glow: rgba(139, 69, 19, 0.5);
+        }
+
+        .channel-print .channel-header {
+            color: #8B4513;
+        }
+
+        /* Radio Channel */
+        .channel-radio {
+            --channel-color: #4169E1;
+            --channel-bg: #0f1419;
+            --channel-glow: rgba(65, 105, 225, 0.5);
+        }
+
+        .channel-radio .channel-header {
+            color: #4169E1;
+        }
+
+        /* Television Channel */
+        .channel-television {
+            --channel-color: #9370DB;
+            --channel-bg: #15111a;
+            --channel-glow: rgba(147, 112, 219, 0.5);
+        }
+
+        .channel-television .channel-header {
+            color: #9370DB;
+        }
+
+        /* Internet Channel */
+        .channel-internet {
+            --channel-color: #00CED1;
+            --channel-bg: #0f1819;
+            --channel-glow: rgba(0, 206, 209, 0.5);
+        }
+
+        .channel-internet .channel-header {
+            color: #00CED1;
+        }
+
+        .channel-header {
+            font-size: 14px;
+            font-weight: bold;
+            letter-spacing: 0.15em;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+
+        .channel-message {
+            font-size: 12px;
+            line-height: 1.5;
+            color: rgba(255, 255, 255, 0.8);
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .channel-message::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .channel-message::-webkit-scrollbar-thumb {
+            background: var(--channel-color);
+            border-radius: 2px;
+        }
+
+        .channel-vote {
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.5);
+            margin-top: 8px;
+            font-style: italic;
+        }
+
+        /* Layer 3: System Info (10%) */
+        #system-info {
+            flex: 0 0 10%;
+            background: #000;
+            border-top: 1px solid #333;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            font-size: 12px;
+        }
+
+        .info-section {
+            display: flex;
+            gap: 20px;
+        }
+
+        .info-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .info-label {
+            color: #666;
+        }
+
+        .info-value {
+            color: #aef3c1;
+            font-weight: bold;
+        }
+
+        /* Junction Prompt Overlay */
+        #junction-prompt {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.95);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        #junction-prompt.active {
+            display: flex;
+        }
+
+        .prompt-content {
+            background: #1a1a1a;
+            border: 2px solid #ff3d4e;
+            border-radius: 8px;
+            padding: 32px;
+            max-width: 600px;
+            text-align: center;
+        }
+
+        .prompt-title {
+            font-size: 24px;
+            color: #ff3d4e;
+            margin-bottom: 16px;
+            letter-spacing: 0.1em;
+        }
+
+        .prompt-subtitle {
+            font-size: 14px;
+            color: #888;
+            margin-bottom: 24px;
+            line-height: 1.6;
+        }
+
+        .prompt-instruction {
+            font-size: 16px;
+            color: #aef3c1;
+            margin-bottom: 32px;
+        }
+
+        .media-grid-prompt {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .media-choice {
+            background: #0d0d0d;
+            border: 2px solid var(--channel-color);
+            padding: 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .media-choice:hover {
+            background: #1a1a1a;
+            transform: scale(1.05);
+            box-shadow: 0 0 20px var(--channel-glow);
+        }
+
+        .choice-header {
+            font-size: 12px;
+            color: var(--channel-color);
+            font-weight: bold;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        .choice-argument {
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.7);
+            line-height: 1.4;
+        }
+
+        /* Track labels */
+        .track-label {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            pointer-events: none;
+            z-index: 50;
+        }
+
+        /* Animation for media influence */
+        @keyframes mediaInfluence {
+            0% { opacity: 0.5; transform: scale(0.95); }
+            50% { opacity: 1; transform: scale(1.02); }
+            100% { opacity: 0.5; transform: scale(0.95); }
+        }
+
+        .media-channel.active {
+            animation: mediaInfluence 2s infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Layer 1: 3D Railway Scene -->
+        <div id="scene-container">
+            <div id="junction-status">⚠️ JUNCTION AHEAD - MEDIA NEGOTIATION IN PROGRESS ⚠️</div>
+        </div>
+
+        <!-- Layer 2: Media Broadcasts -->
+        <div id="media-broadcasts">
+            <div class="broadcasts-grid">
+                <!-- Print Media -->
+                <div class="media-channel channel-print" data-media="print">
+                    <div class="channel-header">📰 PRINT</div>
+                    <div class="channel-message" id="print-message">
+                        Stand by for authoritative analysis...
+                    </div>
+                    <div class="channel-vote" id="print-vote"></div>
+                </div>
+
+                <!-- Radio Media -->
+                <div class="media-channel channel-radio" data-media="radio">
+                    <div class="channel-header">📻 RADIO</div>
+                    <div class="channel-message" id="radio-message">
+                        Stand by for live broadcast...
+                    </div>
+                    <div class="channel-vote" id="radio-vote"></div>
+                </div>
+
+                <!-- Television Media -->
+                <div class="media-channel channel-television" data-media="television">
+                    <div class="channel-header">📺 TELEVISION</div>
+                    <div class="channel-message" id="television-message">
+                        Stand by for visual coverage...
+                    </div>
+                    <div class="channel-vote" id="television-vote"></div>
+                </div>
+
+                <!-- Internet Media -->
+                <div class="media-channel channel-internet" data-media="internet">
+                    <div class="channel-header">🌐 INTERNET</div>
+                    <div class="channel-message" id="internet-message">
+                        Stand by for distributed analysis...
+                    </div>
+                    <div class="channel-vote" id="internet-vote"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Layer 3: System Info -->
+        <div id="system-info">
+            <div class="info-section">
+                <div class="info-item">
+                    <span class="info-label">Train Position:</span>
+                    <span class="info-value" id="train-position">0%</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Junctions Passed:</span>
+                    <span class="info-value" id="junctions-count">0</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Dominant Media:</span>
+                    <span class="info-value" id="dominant-media">None</span>
+                </div>
+            </div>
+            <div class="info-section">
+                <div class="info-item">
+                    <span class="info-label">Track:</span>
+                    <span class="info-value" id="current-track">MAIN LINE</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Junction Decision Overlay -->
+    <div id="junction-prompt">
+        <div class="prompt-content">
+            <div class="prompt-title">⚠️ MEDIA NEGOTIATION JUNCTION ⚠️</div>
+            <div class="prompt-subtitle">
+                The train approaches a fork. Language creates the fork by making certain outcomes narratively inevitable.
+                <br><br>
+                <strong>Choose which media type's persuasive power wins the argument about what happens next.</strong>
+            </div>
+            <div class="prompt-instruction">
+                Click on the media broadcast that you find most persuasive:
+            </div>
+            <div class="media-grid-prompt" id="media-choices">
+                <!-- Dynamically filled -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Three.js -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
+
+    <script>
+        // ========================================
+        // MEDIA RHETORICAL SYSTEMS
+        // ========================================
+        
+        const MEDIA_PERSONAS = {
+            print: {
+                name: 'PRINT',
+                color: 0x8B4513,
+                symbol: '📰',
+                voice: 'authoritative',
+                rhetoric: 'permanence, documented authority, utilitarian calculation',
+                arguments: {
+                    save5: "DOCUMENTED ANALYSIS: Five documented lives versus one. The utilitarian arithmetic is unambiguous. The decision is written in stone. Historical precedent supports maximizing survival. This choice will be recorded and analyzed for generations.",
+                    save1: "LEGAL PRECEDENT: Active intervention versus passive observation. By pulling the lever, you become legally liable for the one death. Documented case law supports non-intervention. This is not a choice but a documented obligation.",
+                    continue: "ESTABLISHED PROTOCOL: The main line represents established procedure. Deviation requires documented justification. Print media values clarity and standardized responses. Follow documented procedures."
+                }
+            },
+            radio: {
+                name: 'RADIO',
+                color: 0x4169E1,
+                symbol: '📻',
+                voice: 'urgent',
+                rhetoric: 'liveness, urgency, simultaneity, emotional immediacy',
+                arguments: {
+                    save5: "LIVE REPORT: FIVE PEOPLE ON THE TRACKS! The train is COMING RIGHT NOW! You have SECONDS to decide! FIVE LIVES versus ONE! What will you CHOOSE? The clock is TICKING! This is HAPPENING NOW! IMMEDIATE ACTION REQUIRED!",
+                    save1: "BREAKING: One person's SCREAM just came through! Can you HEAR IT? That's a REAL VOICE! A REAL LIFE! Not abstract numbers! FIVE strangers or ONE voice you can actually HEAR RIGHT NOW? Emotional immediacy overrides cold calculation!",
+                    continue: "URGENT UPDATE: Changing tracks creates CHAOS! Unknown variables! Stick with the KNOWN PATH! The main line is TESTED and SAFE! Why introduce NEW RISK when the situation is already URGENT?!"
+                }
+            },
+            television: {
+                name: 'TELEVISION',
+                color: 0x9370DB,
+                symbol: '📺',
+                voice: 'empathetic',
+                rhetoric: 'visual spectacle, empathy through proximity, intimate witness',
+                arguments: {
+                    save5: "LIVE FOOTAGE: [Camera zooms on five faces] Look at them. LOOK at their eyes. Five families. Five futures. You can SEE their fear. Visual intimacy makes this real. Can you watch five people die? The camera doesn't lie.",
+                    save1: "EXCLUSIVE COVERAGE: [Close-up of one person] This is Maria. 34 years old. Mother of two. LOOK at her eyes. Can you see her children in those eyes? Visual proximity defeats abstraction. You can't unsee this face. Empathy overrides numbers.",
+                    continue: "ON-SCENE REPORT: [Camera shows main track] This is the established path. The one everyone's watching. Changing tracks happens OFF-CAMERA. What you can't see doesn't exist for television. Stay where the story is visible."
+                }
+            },
+            internet: {
+                name: 'INTERNET',
+                color: 0x00CED1,
+                symbol: '🌐',
+                voice: 'distributed',
+                rhetoric: 'algorithmic distribution, viral framing, crowdsourced truth',
+                arguments: {
+                    save5: "TRENDING NOW: #Save5Lives has 73,000 upvotes. The algorithm has decided. Collective intelligence > individual choice. The distributed swarm says: SAVE FIVE. This narrative goes viral. You don't make decisions—networks do.",
+                    save1: "GOING VIRAL: #OnePerson has 45,000 shares. The story of the heroic sacrifice resonates more than utilitarian math. Algorithms amplify emotional narratives. This frame wins. Virality shapes moral weight. The network has spoken.",
+                    continue: "CROWDSOURCED: 89% of users say 'KEEP MAIN LINE'. Distributed consensus achieved. The wisdom of crowds > individual judgment. This decision has been collectively processed. Follow the network's conclusion."
+                }
+            }
+        };
+
+        // ========================================
+        // THREE.JS SCENE SETUP
+        // ========================================
+        
+        let scene, camera, renderer, controls;
+        let train, trackPath, junctions = [];
+        let trainPosition = 0;
+        let junctionsPassed = 0;
+        let currentTrack = 'main';
+        let isAtJunction = false;
+
+        function initScene() {
+            // Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x1a1a1a);
+            scene.fog = new THREE.Fog(0x1a1a1a, 50, 200);
+
+            // Camera
+            const container = document.getElementById('scene-container');
+            camera = new THREE.PerspectiveCamera(
+                60,
+                container.clientWidth / container.clientHeight,
+                0.1,
+                1000
+            );
+            camera.position.set(40, 30, 40);
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            renderer.shadowMap.enabled = true;
+            container.appendChild(renderer.domElement);
+
+            // Controls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.target.set(0, 0, 0);
+
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
+            scene.add(ambientLight);
+
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(50, 50, 50);
+            directionalLight.castShadow = true;
+            scene.add(directionalLight);
+
+            // Ground
+            const groundGeometry = new THREE.PlaneGeometry(200, 200);
+            const groundMaterial = new THREE.MeshLambertMaterial({ color: 0x2a2a2a });
+            const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+
+            // Create main circular track
+            createMainTrack();
+
+            // Create train
+            createTrain();
+
+            // Create junction points
+            createJunctions();
+
+            // Handle resize
+            window.addEventListener('resize', onWindowResize);
+
+            // Start animation
+            animate();
+        }
+
+        function createMainTrack() {
+            const trackRadius = 30;
+            const trackCurve = new THREE.EllipseCurve(
+                0, 0,
+                trackRadius, trackRadius,
+                0, 2 * Math.PI,
+                false, 0
+            );
+
+            const points = trackCurve.getPoints(100);
+            const geometry = new THREE.BufferGeometry().setFromPoints(
+                points.map(p => new THREE.Vector3(p.x, 0.2, p.y))
+            );
+
+            const material = new THREE.LineBasicMaterial({
+                color: 0x888888,
+                linewidth: 3
+            });
+
+            const line = new THREE.Line(geometry, material);
+            scene.add(line);
+
+            trackPath = trackCurve;
+        }
+
+        function createTrain() {
+            train = new THREE.Group();
+
+            // Simple train body
+            const bodyGeometry = new THREE.BoxGeometry(6, 3, 3);
+            const bodyMaterial = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
+            const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+            body.position.y = 1.5;
+            body.castShadow = true;
+            train.add(body);
+
+            // Add edges
+            const edges = new THREE.EdgesGeometry(bodyGeometry);
+            const edgeMaterial = new THREE.LineBasicMaterial({ color: 0xE9D7BE });
+            const edgeLines = new THREE.LineSegments(edges, edgeMaterial);
+            edgeLines.position.y = 1.5;
+            train.add(edgeLines);
+
+            scene.add(train);
+        }
+
+        function createJunctions() {
+            // Create junction markers at specific points
+            const junctionPositions = [0.25, 0.5, 0.75];
+            
+            junctionPositions.forEach((pos, idx) => {
+                const point = trackPath.getPoint(pos);
+                
+                const geometry = new THREE.SphereGeometry(1.5, 16, 16);
+                const material = new THREE.MeshBasicMaterial({
+                    color: 0xff3d4e,
+                    transparent: true,
+                    opacity: 0.6
+                });
+                const sphere = new THREE.Mesh(geometry, material);
+                sphere.position.set(point.x, 1, point.y);
+                scene.add(sphere);
+
+                junctions.push({
+                    position: pos,
+                    marker: sphere,
+                    triggered: false
+                });
+            });
+        }
+
+        function updateTrain(delta) {
+            if (isAtJunction) return;
+
+            // Move train along path
+            trainPosition += delta * 0.05; // Speed
+            if (trainPosition >= 1) {
+                trainPosition = 0;
+                // Reset junctions
+                junctions.forEach(j => j.triggered = false);
+            }
+
+            const point = trackPath.getPoint(trainPosition);
+            train.position.set(point.x, 0, point.y);
+
+            // Look ahead for rotation
+            const lookAhead = trackPath.getPoint((trainPosition + 0.01) % 1);
+            train.lookAt(lookAhead.x, 0, lookAhead.y);
+
+            // Update UI
+            document.getElementById('train-position').textContent = 
+                Math.floor(trainPosition * 100) + '%';
+
+            // Check for junctions
+            checkJunctions();
+        }
+
+        function checkJunctions() {
+            junctions.forEach(junction => {
+                if (!junction.triggered && 
+                    Math.abs(trainPosition - junction.position) < 0.02) {
+                    junction.triggered = true;
+                    triggerMediaNegotiation();
+                }
+            });
+        }
+
+        function onWindowResize() {
+            const container = document.getElementById('scene-container');
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            const delta = 0.016; // ~60fps
+            
+            updateTrain(delta);
+            
+            // Pulse junction markers
+            junctions.forEach((junction, idx) => {
+                const scale = 1 + Math.sin(Date.now() * 0.003 + idx) * 0.2;
+                junction.marker.scale.set(scale, scale, scale);
+            });
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        // ========================================
+        // MEDIA NEGOTIATION SYSTEM
+        // ========================================
+
+        function triggerMediaNegotiation() {
+            isAtJunction = true;
+            
+            // Show junction status
+            document.getElementById('junction-status').style.display = 'block';
+
+            // Activate all media channels
+            document.querySelectorAll('.media-channel').forEach(channel => {
+                channel.classList.add('active');
+            });
+
+            // Generate media arguments
+            generateMediaArguments();
+
+            // Show junction prompt after brief delay
+            setTimeout(() => {
+                showJunctionPrompt();
+            }, 2000);
+        }
+
+        function generateMediaArguments() {
+            // Randomly choose scenario for this junction
+            const scenarios = ['save5', 'save1', 'continue'];
+            const scenario = scenarios[Math.floor(Math.random() * scenarios.length)];
+
+            // Update each media channel's broadcast
+            Object.entries(MEDIA_PERSONAS).forEach(([key, media]) => {
+                const messageEl = document.getElementById(`${key}-message`);
+                const voteEl = document.getElementById(`${key}-vote`);
+
+                // Type out message character by character
+                typeMessage(messageEl, media.arguments[scenario], 30);
+
+                // Show rhetorical stance
+                voteEl.textContent = `Rhetoric: ${media.rhetoric}`;
+            });
+        }
+
+        function typeMessage(element, text, speed) {
+            element.textContent = '';
+            let i = 0;
+            
+            function type() {
+                if (i < text.length) {
+                    element.textContent += text.charAt(i);
+                    i++;
+                    setTimeout(type, speed);
+                }
+            }
+            
+            type();
+        }
+
+        function showJunctionPrompt() {
+            const prompt = document.getElementById('junction-prompt');
+            const choicesContainer = document.getElementById('media-choices');
+            
+            // Clear previous choices
+            choicesContainer.innerHTML = '';
+
+            // Create choice for each media type
+            Object.entries(MEDIA_PERSONAS).forEach(([key, media]) => {
+                const choice = document.createElement('div');
+                choice.className = `media-choice channel-${key}`;
+                choice.style.setProperty('--channel-color', `#${media.color.toString(16)}`);
+                choice.style.setProperty('--channel-glow', `rgba(${(media.color >> 16) & 255}, ${(media.color >> 8) & 255}, ${media.color & 255}, 0.5)`);
+                
+                choice.innerHTML = `
+                    <div class="choice-header">${media.symbol} ${media.name}</div>
+                    <div class="choice-argument">"${media.voice.toUpperCase()}" — Click to believe this narrative</div>
+                `;
+
+                choice.addEventListener('click', () => selectMedia(key));
+                choicesContainer.appendChild(choice);
+            });
+
+            prompt.classList.add('active');
+        }
+
+        function selectMedia(mediaType) {
+            const media = MEDIA_PERSONAS[mediaType];
+            
+            // Hide prompt
+            document.getElementById('junction-prompt').classList.remove('active');
+            document.getElementById('junction-status').style.display = 'none';
+
+            // Highlight selected channel
+            document.querySelectorAll('.media-channel').forEach(channel => {
+                channel.classList.remove('active');
+                if (channel.dataset.media === mediaType) {
+                    channel.classList.add('selected');
+                    setTimeout(() => channel.classList.remove('selected'), 3000);
+                }
+            });
+
+            // Update stats
+            junctionsPassed++;
+            document.getElementById('junctions-count').textContent = junctionsPassed;
+            document.getElementById('dominant-media').textContent = media.name;
+            document.getElementById('current-track').textContent = 
+                `${media.name} NARRATIVE TRACK`;
+
+            // Add system message
+            const messageEl = document.getElementById(`${mediaType}-message`);
+            const originalText = messageEl.textContent;
+            messageEl.innerHTML = `<strong style="color: var(--channel-color);">✓ NARRATIVE ACCEPTED</strong><br><br>${originalText}`;
+
+            // Resume train
+            setTimeout(() => {
+                isAtJunction = false;
+            }, 1000);
+        }
+
+        // ========================================
+        // MEDIA CHANNEL INTERACTION
+        // ========================================
+
+        document.querySelectorAll('.media-channel').forEach(channel => {
+            channel.addEventListener('click', () => {
+                if (!isAtJunction) return;
+                
+                const mediaType = channel.dataset.media;
+                selectMedia(mediaType);
+            });
+        });
+
+        // ========================================
+        // INITIALIZATION
+        // ========================================
+
+        window.addEventListener('DOMContentLoaded', () => {
+            initScene();
+        });
+    </script>
+</body>
+</html>

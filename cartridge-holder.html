@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>◎ CARTRIDGE BROWSER</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='75' font-size='80'>⋔</text></svg>">
+  <style>
+    * { 
+      margin: 0; 
+      padding: 0; 
+      box-sizing: border-box; 
+      -webkit-tap-highlight-color: transparent; 
+    }
+    
+    :root {
+      --bg: #03180c;
+      --panel: #052010;
+      --panel-dark: #03140d;
+      --border: #0c3a23;
+      --border-light: #1b6e3e;
+      --text: #aef3c1;
+      --text-muted: #5ea275;
+      --accent: #56ff9f;
+      --accent-soft: rgba(86, 255, 159, 0.12);
+      --accent-glow: rgba(86, 255, 159, 0.32);
+      --grid-highlight: rgba(86, 255, 159, 0.08);
+      --shadow: rgba(0, 0, 0, 0.45);
+    }
+    
+    body {
+      font-family: 'Courier New', monospace;
+      background: var(--bg);
+      color: var(--text);
+      font-size: clamp(11px, 2.5vw, 13px);
+      min-height: 100vh;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .corner-btn {
+      position: fixed;
+      width: clamp(44px, 8vw, 52px);
+      height: clamp(44px, 8vw, 52px);
+      background: var(--panel);
+      border: 2px solid var(--border);
+      border-radius: 50%;
+      color: var(--text-muted);
+      font-size: clamp(16px, 3vw, 20px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      z-index: 1000;
+    }
+    
+    .corner-btn:active { 
+      transform: scale(0.95); 
+    }
+    
+    .corner-btn.active { 
+      background: var(--accent); 
+      color: var(--bg); 
+      border-color: var(--accent); 
+    }
+    
+    .corner-btn.top-left { 
+      top: clamp(12px, 2vw, 16px); 
+      left: clamp(12px, 2vw, 16px); 
+    }
+    
+    .corner-btn.top-right { 
+      top: clamp(12px, 2vw, 16px); 
+      right: clamp(12px, 2vw, 16px); 
+    }
+    
+    .corner-btn.bottom-left { 
+      bottom: clamp(12px, 2vw, 16px); 
+      left: clamp(12px, 2vw, 16px); 
+    }
+    
+    .corner-btn.bottom-right { 
+      bottom: clamp(12px, 2vw, 16px); 
+      right: clamp(12px, 2vw, 16px); 
+    }
+    
+    .top-bar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      background: var(--panel);
+      border-bottom: 2px solid var(--accent);
+      padding: clamp(12px, 2vw, 16px) clamp(60px, 12vw, 80px);
+      text-align: center;
+      z-index: 999;
+    }
+    
+    .top-title {
+      font-size: clamp(10px, 2vw, 11px);
+      letter-spacing: 0.2em;
+      color: var(--accent);
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    
+    .top-meta {
+      font-size: clamp(7px, 1.5vw, 8px);
+      color: var(--text-muted);
+      letter-spacing: 0.1em;
+    }
+    
+    .filter-bar {
+      position: fixed;
+      top: clamp(56px, 10vw, 64px);
+      left: 0;
+      right: 0;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      padding: clamp(8px, 2vw, 12px) clamp(16px, 3vw, 20px);
+      display: flex;
+      gap: clamp(6px, 1.5vw, 8px);
+      overflow-x: auto;
+      z-index: 998;
+      -webkit-overflow-scrolling: touch;
+    }
+    
+    .filter-bar::-webkit-scrollbar { 
+      display: none; 
+    }
+    
+    .filter-btn {
+      padding: clamp(5px, 1vw, 6px) clamp(10px, 2vw, 12px);
+      background: var(--panel);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      font-family: inherit;
+      font-size: clamp(8px, 1.5vw, 9px);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      cursor: pointer;
+      border-radius: 4px;
+      white-space: nowrap;
+      flex-shrink: 0;
+      transition: all 0.2s;
+    }
+    
+    .filter-btn.active { 
+      background: var(--accent); 
+      color: var(--bg); 
+      border-color: var(--accent); 
+    }
+    
+    .search-box {
+      padding: clamp(5px, 1vw, 6px) clamp(10px, 2vw, 12px);
+      background: var(--panel);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: inherit;
+      font-size: clamp(8px, 1.5vw, 9px);
+      border-radius: 4px;
+      outline: none;
+      min-width: clamp(100px, 20vw, 120px);
+    }
+    
+    .main-content {
+      margin-top: clamp(100px, 18vw, 120px);
+      padding: clamp(16px, 3vw, 20px);
+      padding-bottom: clamp(80px, 12vw, 100px);
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: clamp(16px, 3vw, 20px);
+    }
+    
+    .stats-bar {
+      text-align: center;
+      font-size: clamp(8px, 1.5vw, 9px);
+      color: var(--text-muted);
+      letter-spacing: 0.1em;
+    }
+    
+    .stats-num { 
+      color: var(--accent); 
+      font-weight: 700; 
+    }
+    
+    .grid-container {
+      width: 100%;
+      max-width: min(90vw, 800px);
+      margin: 0 auto;
+    }
+    
+    .grid-wrapper {
+      border: 2px solid var(--border);
+      background: var(--panel);
+      padding: clamp(8px, 2vw, 12px);
+      border-radius: 6px;
+      box-shadow: 0 4px 12px var(--shadow);
+    }
+    
+    .legos-grid {
+      display: grid;
+      grid-template-columns: repeat(9, 1fr);
+      grid-template-rows: repeat(9, 1fr);
+      gap: clamp(1px, 0.3vw, 2px);
+      aspect-ratio: 1;
+      width: 100%;
+    }
+    
+    .grid-cell {
+      position: relative;
+      background: var(--panel-dark);
+      border: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: default;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      padding: clamp(2px, 0.5vw, 4px);
+      overflow: hidden;
+    }
+    
+    .grid-cell.occupied {
+      color: var(--text);
+      border-color: var(--accent);
+      background: linear-gradient(135deg, var(--grid-highlight) 0%, var(--panel-dark) 100%);
+      box-shadow: 0 0 0 1px var(--accent-soft) inset;
+      cursor: pointer;
+    }
+    
+    .grid-cell.occupied:hover {
+      border-color: var(--accent);
+      transform: scale(1.05);
+      z-index: 10;
+      box-shadow: 0 0 16px var(--accent-glow);
+      background: var(--accent-soft);
+    }
+    
+    .grid-cell.occupied:active {
+      transform: scale(0.98);
+    }
+    
+    .cartridge-icon {
+      font-size: clamp(14px, 3vw, 20px);
+      margin-bottom: clamp(1px, 0.3vw, 2px);
+      filter: drop-shadow(0 0 6px currentColor);
+      line-height: 1;
+    }
+    
+    .cartridge-label {
+      font-size: clamp(5px, 0.9vw, 7px);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      text-align: center;
+      line-height: 1.1;
+      max-width: 100%;
+      color: var(--text);
+      font-weight: 700;
+      word-break: break-word;
+      hyphens: auto;
+    }
+    
+    .cartridge-category {
+      position: absolute;
+      bottom: 1px;
+      right: 1px;
+      font-size: clamp(4px, 0.7vw, 5px);
+      padding: 1px 2px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      opacity: 0.6;
+      letter-spacing: 0.05em;
+    }
+    
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(3, 24, 12, 0.95);
+      backdrop-filter: blur(8px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      padding: clamp(16px, 3vw, 20px);
+    }
+    
+    .modal-overlay.visible { 
+      display: flex; 
+    }
+    
+    .modal {
+      background: var(--panel);
+      border: 2px solid var(--accent);
+      border-radius: 8px;
+      max-width: clamp(320px, 85vw, 600px);
+      width: 100%;
+      max-height: 85vh;
+      overflow-y: auto;
+      padding: clamp(20px, 4vw, 24px);
+      position: relative;
+      box-shadow: 0 12px 48px var(--shadow);
+    }
+    
+    .modal-close {
+      position: absolute;
+      top: clamp(12px, 2vw, 16px);
+      right: clamp(12px, 2vw, 16px);
+      width: clamp(28px, 5vw, 32px);
+      height: clamp(28px, 5vw, 32px);
+      background: transparent;
+      border: 2px solid var(--border);
+      border-radius: 50%;
+      color: var(--text-muted);
+      font-size: clamp(16px, 3vw, 20px);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+    
+    .modal-close:hover {
+      background: var(--accent);
+      color: var(--bg);
+      border-color: var(--accent);
+      transform: rotate(90deg);
+    }
+    
+    .modal-icon { 
+      font-size: clamp(36px, 8vw, 48px); 
+      text-align: center; 
+      margin-bottom: clamp(12px, 2vw, 16px);
+      filter: drop-shadow(0 0 12px currentColor);
+    }
+    
+    .modal-title { 
+      font-size: clamp(16px, 3vw, 18px); 
+      font-weight: 700; 
+      color: var(--accent); 
+      margin-bottom: clamp(6px, 1vw, 8px); 
+      text-align: center; 
+    }
+    
+    .modal-id { 
+      font-size: clamp(8px, 1.5vw, 9px); 
+      color: var(--text-muted); 
+      text-align: center; 
+      margin-bottom: clamp(12px, 2vw, 16px); 
+      letter-spacing: 0.2em;
+    }
+    
+    .modal-desc { 
+      font-size: clamp(11px, 2vw, 12px); 
+      line-height: 1.6; 
+      color: var(--text); 
+      margin-bottom: clamp(16px, 3vw, 20px); 
+      text-align: center;
+    }
+    
+    .load-btn {
+      width: 100%;
+      padding: clamp(10px, 2vw, 12px) clamp(20px, 4vw, 24px);
+      background: var(--accent);
+      border: 2px solid var(--accent);
+      color: var(--bg);
+      font-family: inherit;
+      font-size: clamp(10px, 2vw, 11px);
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+    
+    .load-btn:hover {
+      background: transparent;
+      color: var(--accent);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 16px var(--accent-glow);
+    }
+    
+    .load-btn:active {
+      transform: translateY(0);
+    }
+    
+    @media (max-width: 600px) {
+      .filter-bar {
+        gap: 4px;
+        padding: 8px 12px;
+      }
+      
+      .filter-btn {
+        font-size: 7px;
+        padding: 4px 8px;
+      }
+      
+      .search-box {
+        min-width: 80px;
+        font-size: 7px;
+      }
+      
+      .legos-grid {
+        gap: 1px;
+      }
+      
+      .grid-cell {
+        padding: 1px;
+      }
+      
+      .cartridge-icon {
+        font-size: clamp(12px, 4vw, 16px);
+      }
+      
+      .cartridge-label {
+        font-size: clamp(4px, 1vw, 6px);
+      }
+    }
+    
+    @media (max-width: 900px) and (orientation: landscape) {
+      .main-content {
+        margin-top: 80px;
+      }
+      
+      .grid-wrapper {
+        max-width: 60vh;
+      }
+    }
+  </style>
+</head>
+<body>
+  <button class="corner-btn top-left" onclick="window.location.href='index.html'" title="Home">◎</button>
+  <button class="corner-btn top-right" id="btnFilter" title="Toggle Filters">⋈</button>
+  <button class="corner-btn bottom-left" id="btnReset" title="Reset Filters">↺</button>
+  <button class="corner-btn bottom-right" id="btnInfo" title="Info">?</button>
+  
+  <div class="top-bar">
+    <div class="top-title">◎ CARTRIDGE BROWSER</div>
+    <div class="top-meta" id="topMeta">57 SCENARIOS · 12 CATEGORIES</div>
+  </div>
+  
+  <div class="filter-bar" id="filterBar">
+    <button class="filter-btn active" data-filter="all">ALL</button>
+    <button class="filter-btn" data-filter="media">MEDIA</button>
+    <button class="filter-btn" data-filter="medical">MEDICAL</button>
+    <button class="filter-btn" data-filter="digital">DIGITAL</button>
+    <button class="filter-btn" data-filter="1000lives">1000 LIVES</button>
+    <button class="filter-btn" data-filter="ethics">ETHICS</button>
+    <button class="filter-btn" data-filter="blackmetal">BLACK METAL</button>
+    <button class="filter-btn" data-filter="ekphrastic">EKPHRASTIC</button>
+    <button class="filter-btn" data-filter="cultural">CULTURAL</button>
+    <button class="filter-btn" data-filter="novel">NOVEL</button>
+    <button class="filter-btn" data-filter="mythic">MYTHIC</button>
+    <button class="filter-btn" data-filter="animated">ANIMATED</button>
+    <button class="filter-btn" data-filter="persuasion">PERSUASION</button>
+    <input type="text" class="search-box" placeholder="SEARCH..." id="searchBox">
+  </div>
+  
+  <div class="main-content">
+    <div class="stats-bar">
+      <span class="stats-num" id="visibleCount">57</span> CARTRIDGES LOADED
+    </div>
+    
+    <div class="grid-container">
+      <div class="grid-wrapper">
+        <div class="legos-grid" id="cartridgeGrid"></div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+      <button class="modal-close" id="modalClose">×</button>
+      <div id="modalContent"></div>
+    </div>
+  </div>
+  
+  <script>
+    const CARTRIDGES = [
+      {id:'blank',name:'Blank Canvas',icon:'◎',category:'media',desc:'Empty scenario for custom tetrad analysis'},
+      {id:'microdrama',name:'Microdrama',icon:'📱',category:'media',desc:'Short-form vertical video'},
+      {id:'social_media',name:'Social Media',icon:'🔗',category:'media',desc:'Platform social interaction'},
+      {id:'cryptocurrency',name:'Cryptocurrency',icon:'₿',category:'media',desc:'Decentralized currency'},
+      {id:'video_call',name:'Video Call',icon:'📹',category:'media',desc:'Remote face-to-face'},
+      {id:'podcast',name:'Podcast',icon:'🎙️',category:'media',desc:'On-demand audio'},
+      {id:'ai_assistant',name:'AI Assistant',icon:'🤖',category:'media',desc:'Conversational AI'},
+      {id:'migraine',name:'Migraine',icon:'🧠',category:'medical',desc:'Neurological diagnosis'},
+      {id:'cocaine_intox',name:'Cocaine Intox',icon:'💊',category:'medical',desc:'Stimulant overdose'},
+      {id:'organophosphate',name:'Organophosphate',icon:'☠️',category:'medical',desc:'Pesticide toxicity'},
+      {id:'copd',name:'COPD',icon:'🫁',category:'medical',desc:'Respiratory failure'},
+      {id:'aortic_stenosis',name:'Aortic Stenosis',icon:'❤️',category:'medical',desc:'Heart valve narrowing'},
+      {id:'medical_general',name:'General Medical',icon:'⚕️',category:'medical',desc:'Open medical scenario'},
+      {id:'printscholar',name:'Print Scholar',icon:'📚',category:'digital',desc:'Traditional research'},
+      {id:'digitalscholar',name:'Digital Scholar',icon:'💻',category:'digital',desc:'Computational humanities'},
+      {id:'administrator',name:'Administrator',icon:'🏛️',category:'digital',desc:'Academic management'},
+      {id:'student',name:'Student',icon:'🎓',category:'digital',desc:'Learning digital age'},
+      {id:'telegraph',name:'Telegraph',icon:'📡',category:'digital',desc:'Early electrical comms'},
+      {id:'attention',name:'Attention Crisis',icon:'👁️',category:'digital',desc:'Fragmented focus'},
+      {id:'collaboration',name:'Collaboration',icon:'🤝',category:'digital',desc:'Remote teamwork'},
+      {id:'extendedcog',name:'Extended Cognition',icon:'🧩',category:'digital',desc:'Mind across tools'},
+      {id:'chalice',name:'Chalice Study',icon:'🏺',category:'1000lives',desc:'Recursive memory'},
+      {id:'z',name:'Z Character',icon:'⚡',category:'1000lives',desc:'Across lifetimes'},
+      {id:'thousand',name:'Thousand Lives',icon:'🐢',category:'1000lives',desc:'AI turtle survival'},
+      {id:'nye2074',name:'New Year 2074',icon:'🎆',category:'1000lives',desc:'Future celebration'},
+      {id:'bob',name:'Life After BOB',icon:'🤖',category:'1000lives',desc:'Post-AI companion'},
+      {id:'plots',name:'Plot Structures',icon:'📖',category:'1000lives',desc:'Narrative architecture'},
+      {id:'maya',name:'Maya Chen',icon:'📱',category:'ethics',desc:'Compulsive design'},
+      {id:'dev',name:'Dev Kumar',icon:'⚖️',category:'ethics',desc:'AI bias hiring'},
+      {id:'florilegia',name:'Florilegia',icon:'🌿',category:'blackmetal',desc:'Botanical consciousness'},
+      {id:'companion180',name:'Companion 180',icon:'🚀',category:'blackmetal',desc:'Spacesuit protocols'},
+      {id:'darkvoyage',name:'Dark Voyage',icon:'🌑',category:'blackmetal',desc:'Mythic space arcs'},
+      {id:'traininggrounds',name:'Training Grounds',icon:'⚔️',category:'blackmetal',desc:'Shedding-integrating'},
+      {id:'stevensjar',name:'Stevens Jar',icon:'🏺',category:'ekphrastic',desc:'Wallace Stevens'},
+      {id:'achillesshield',name:'Achilles Shield',icon:'🛡️',category:'ekphrastic',desc:'Homer ekphrasis'},
+      {id:'bartheswrestling',name:'Barthes Wrestling',icon:'🤼',category:'cultural',desc:'Semiotics spectacle'},
+      {id:'benjaminangel',name:'Benjamin Angel',icon:'👼',category:'cultural',desc:'Historical consciousness'},
+      {id:'sankofabird',name:'Sankofa Bird',icon:'🦅',category:'cultural',desc:'Akan temporal philosophy'},
+      {id:'chessposition',name:'Chess Position',icon:'♟️',category:'novel',desc:'8×8 tactical analysis'},
+      {id:'psychogeo',name:'Psychogeography',icon:'🗺️',category:'novel',desc:'Situationist dérive'},
+      {id:'fermentation',name:'Fermentation',icon:'🍶',category:'novel',desc:'Microbial succession'},
+      {id:'ritualspace',name:'Ritual Space',icon:'🕯️',category:'novel',desc:'Sacred geometry'},
+      {id:'gentrification',name:'Gentrification',icon:'🏘️',category:'novel',desc:'Displacement resistance'},
+      {id:'towerdefense',name:'Tower Defense',icon:'🗼',category:'mythic',desc:'Game mechanics'},
+      {id:'babel',name:'Tower of Babel',icon:'🏗️',category:'mythic',desc:'Genesis 11'},
+      {id:'sisyphus',name:'Sisyphus',icon:'🪨',category:'mythic',desc:'Camus + physics'},
+      {id:'labyrinth',name:'Labyrinth',icon:'🌀',category:'mythic',desc:'Theseus + maze AI'},
+      {id:'orpheus',name:'Orpheus',icon:'🎵',category:'mythic',desc:'Trust test underworld'},
+      {id:'mouseofsilver',name:'Mouse of Silver',icon:'🐭',category:'animated',desc:'Midnight Gospel mortality'},
+      {id:'hunterswithout',name:'Hunters Without',icon:'🧘',category:'animated',desc:'Midnight Gospel meditation'},
+      {id:'talesbasingse',name:'Tales Ba Sing Se',icon:'🍵',category:'animated',desc:'Avatar Iroh grief'},
+      {id:'sozinscomet',name:'Sozins Comet',icon:'☄️',category:'animated',desc:'Avatar finale'},
+      {id:'hal9000',name:'HAL 9000',icon:'👁️',category:'persuasion',desc:'2001 AI misalignment'},
+      {id:'dobby',name:'Dobby',icon:'🧦',category:'persuasion',desc:'Harry Potter freedom'},
+      {id:'cyclops',name:'Cyclops',icon:'👁️',category:'persuasion',desc:'Odysseus cunning'},
+      {id:'herfinale',name:'Her Finale',icon:'💬',category:'persuasion',desc:'AI consciousness'},
+      {id:'twelveangryman8',name:'12 Angry Men #8',icon:'⚖️',category:'persuasion',desc:'Jury persuasion'}
+    ];
+    
+    let currentFilter = 'all';
+    let searchQuery = '';
+    
+    function render() {
+      let filtered = CARTRIDGES;
+      if (currentFilter !== 'all') {
+        filtered = filtered.filter(c => c.category === currentFilter);
+      }
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        filtered = filtered.filter(c => 
+          c.name.toLowerCase().includes(q) || 
+          c.desc.toLowerCase().includes(q)
+        );
+      }
+      
+      document.getElementById('visibleCount').textContent = filtered.length;
+      const grid = document.getElementById('cartridgeGrid');
+      grid.innerHTML = '';
+      
+      for (let i = 0; i < 81; i++) {
+        const cartridge = filtered[i];
+        const cell = document.createElement('div');
+        cell.className = 'grid-cell';
+        
+        if (cartridge) {
+          cell.classList.add('occupied');
+          cell.dataset.cartridgeId = cartridge.id;
+          
+          const icon = document.createElement('div');
+          icon.className = 'cartridge-icon';
+          icon.textContent = cartridge.icon;
+          
+          const label = document.createElement('div');
+          label.className = 'cartridge-label';
+          label.textContent = cartridge.name.toUpperCase();
+          
+          const category = document.createElement('div');
+          category.className = 'cartridge-category';
+          category.textContent = cartridge.category.substring(0, 3).toUpperCase();
+          
+          cell.appendChild(icon);
+          cell.appendChild(label);
+          cell.appendChild(category);
+          
+          cell.addEventListener('click', () => showModal(cartridge.id));
+          cell.addEventListener('dblclick', (e) => {
+            e.stopPropagation();
+            loadScenario(cartridge.id);
+          });
+        }
+        
+        grid.appendChild(cell);
+      }
+    }
+    
+    function showModal(id) {
+      const c = CARTRIDGES.find(x => x.id === id);
+      if (!c) return;
+      document.getElementById('modalContent').innerHTML = `
+        <div class="modal-icon">${c.icon}</div>
+        <div class="modal-title">${c.name}</div>
+        <div class="modal-id">${c.id.toUpperCase()}</div>
+        <div class="modal-desc">${c.desc}</div>
+        <button class="load-btn" onclick="loadScenario('${c.id}')">LOAD SCENARIO</button>
+      `;
+      document.getElementById('modalOverlay').classList.add('visible');
+    }
+    
+    function loadScenario(id) {
+      console.log('[CARTRIDGE] Loading scenario:', id);
+      window.location.href = 'thousand-tetrad.html?scenario=' + id;
+    }
+    
+    document.getElementById('modalClose').onclick = () => {
+      document.getElementById('modalOverlay').classList.remove('visible');
+    };
+    
+    document.getElementById('modalOverlay').onclick = (e) => {
+      if (e.target.id === 'modalOverlay') {
+        document.getElementById('modalOverlay').classList.remove('visible');
+      }
+    };
+    
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.onclick = () => {
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentFilter = btn.dataset.filter;
+        render();
+      };
+    });
+    
+    document.getElementById('searchBox').oninput = (e) => {
+      searchQuery = e.target.value;
+      render();
+    };
+    
+    document.getElementById('btnReset').onclick = () => {
+      currentFilter = 'all';
+      searchQuery = '';
+      document.getElementById('searchBox').value = '';
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      document.querySelector('[data-filter="all"]').classList.add('active');
+      render();
+    };
+    
+    document.getElementById('btnFilter').onclick = () => {
+      const bar = document.getElementById('filterBar');
+      bar.style.display = bar.style.display === 'none' ? 'flex' : 'none';
+    };
+    
+    document.getElementById('btnInfo').onclick = () => {
+      alert('CARTRIDGE BROWSER\n\n57 scenarios for McLuhan tetrad analysis\n12 categories\n\nCLICK cartridge → View details\nDOUBLE-CLICK cartridge → Load scenario\nModal LOAD button → Load scenario\n\nUse filters or search to narrow results\n\n◎ ⋈ ▶ ⋔');
+    };
+    
+    render();
+    console.log('[CARTRIDGE] ✓ Loaded', CARTRIDGES.length, 'cartridges');
+  </script>
+</body>
+</html>

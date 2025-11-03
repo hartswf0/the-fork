@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Railway Junction - Simplified</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Courier New', monospace;
+            background: #0a0a0a;
+            color: #e0e0e0;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* CLEAR SEPARATION: 70% GUI / 30% CHAT */
+        .main-container {
+            display: grid;
+            grid-template-rows: 70fr 30fr;
+            height: 100vh;
+        }
+
+        /* ========== TOP: 3D TRAIN GUI (70%) ========== */
+        #train-gui {
+            position: relative;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+        }
+
+        /* Small info overlay */
+        .train-info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 11px;
+            line-height: 1.6;
+        }
+
+        /* ========== BOTTOM: CHAT NEGOTIATION (30%) ========== */
+        #chat-negotiation {
+            display: flex;
+            flex-direction: column;
+            background: #000;
+            border-top: 3px solid #333;
+        }
+
+        /* Messages area */
+        #messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+            background: #0a0a0a;
+        }
+
+        #messages::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        #messages::-webkit-scrollbar-thumb {
+            background: #333;
+            border-radius: 3px;
+        }
+
+        .msg {
+            margin-bottom: 10px;
+            padding: 10px;
+            border-radius: 4px;
+            border-left: 3px solid;
+            font-size: 12px;
+            line-height: 1.5;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .msg.user {
+            background: rgba(174, 243, 193, 0.1);
+            border-color: #aef3c1;
+        }
+
+        .msg.assistant {
+            background: rgba(86, 255, 159, 0.1);
+            border-color: #56ff9f;
+        }
+
+        .msg.system {
+            background: rgba(136, 136, 136, 0.1);
+            border-color: #888;
+            font-style: italic;
+            font-size: 11px;
+        }
+
+        .msg-role {
+            font-weight: bold;
+            font-size: 10px;
+            letter-spacing: 0.1em;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+        }
+
+        /* Input + buttons area */
+        #controls {
+            padding: 12px;
+            background: #000;
+            border-top: 1px solid #333;
+        }
+
+        #input {
+            width: 100%;
+            padding: 8px;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            color: #e0e0e0;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            border-radius: 4px;
+            margin-bottom: 8px;
+            resize: none;
+        }
+
+        #input:focus {
+            outline: none;
+            border-color: #aef3c1;
+        }
+
+        /* Button grid */
+        .button-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        button {
+            padding: 12px;
+            background: #1a1a1a;
+            border: 2px solid;
+            color: inherit;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            font-size: 11px;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.2s;
+            letter-spacing: 0.05em;
+        }
+
+        button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px currentColor;
+        }
+
+        button.enhance {
+            border-color: #56ff9f;
+            color: #56ff9f;
+        }
+
+        button.reverse {
+            border-color: #ff5c7c;
+            color: #ff5c7c;
+        }
+
+        button.retrieve {
+            border-color: #569fff;
+            color: #569fff;
+        }
+
+        button.obsolesce {
+            border-color: #888888;
+            color: #888888;
+        }
+
+        button.send {
+            grid-column: span 2;
+            border-color: #aef3c1;
+            color: #aef3c1;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <!-- TOP 70%: 3D Train Visualization -->
+        <div id="train-gui">
+            <div class="train-info">
+                Track: <strong id="track-name">MAIN</strong><br>
+                Position: <strong id="position">0%</strong><br>
+                Messages: <strong id="msg-count">1</strong>
+            </div>
+        </div>
+
+        <!-- BOTTOM 30%: Chat Negotiation -->
+        <div id="chat-negotiation">
+            <div id="messages">
+                <div class="msg system">
+                    <div class="msg-role">System</div>
+                    Railway Junction System initialized.<br>
+                    Five tracks visible: MAIN (white), ENHANCE (green), REVERSE (red), RETRIEVE (blue), OBSOLESCE (gray).<br>
+                    Type a message or click a fork button to begin.
+                </div>
+            </div>
+            
+            <div id="controls">
+                <textarea id="input" rows="2" placeholder="Type your message..."></textarea>
+                <div class="button-grid">
+                    <button class="send" id="send-btn">SEND MESSAGE</button>
+                    <button class="enhance" data-track="enhance">↗ ENHANCE</button>
+                    <button class="reverse" data-track="reverse">↙ REVERSE</button>
+                    <button class="retrieve" data-track="retrieve">↑ RETRIEVE</button>
+                    <button class="obsolesce" data-track="obsolesce">↓ OBSOLESCE</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
+
+    <script>
+        // ========================================
+        // SIMPLIFIED STATE
+        // ========================================
+        
+        const state = {
+            currentTrack: 'main',
+            trainPosition: 0,
+            messages: []
+        };
+
+        // Track configs
+        const TRACKS = {
+            main: { radius: 30, color: 0xffffff, name: 'MAIN LINE' },
+            enhance: { radius: 35, color: 0x56ff9f, name: 'ENHANCE SPUR' },
+            reverse: { radius: 25, color: 0xff5c7c, name: 'REVERSE JUNCTION' },
+            retrieve: { radius: 40, color: 0x569fff, name: 'RETRIEVE OVERPASS' },
+            obsolesce: { radius: 20, color: 0x888888, name: 'OBSOLESCE UNDERPASS' }
+        };
+
+        // Three.js objects
+        let scene, camera, renderer, controls;
+        let trainGroup, wheels = [];
+        let trackCurves = {};
+
+        // ========================================
+        // GUI: 3D TRAIN SYSTEM (from train-brain)
+        // ========================================
+        
+        function initGUI() {
+            const container = document.getElementById('train-gui');
+            
+            // Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0a0a);
+            scene.fog = new THREE.Fog(0x0a0a0a, 50, 200);
+            
+            // Camera
+            camera = new THREE.PerspectiveCamera(
+                60,
+                container.clientWidth / container.clientHeight,
+                0.1,
+                1000
+            );
+            camera.position.set(50, 50, 50);
+            
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            renderer.shadowMap.enabled = true;
+            container.appendChild(renderer.domElement);
+            
+            // Controls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.target.set(0, 0, 0);
+            
+            // Lights
+            scene.add(new THREE.AmbientLight(0x404040, 0.5));
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            dirLight.position.set(50, 50, 50);
+            dirLight.castShadow = true;
+            scene.add(dirLight);
+            
+            // Ground
+            const ground = new THREE.Mesh(
+                new THREE.PlaneGeometry(200, 200),
+                new THREE.MeshLambertMaterial({ color: 0x1a1a1a })
+            );
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+            
+            // Create 5 tracks
+            Object.entries(TRACKS).forEach(([id, config]) => {
+                const curve = new THREE.EllipseCurve(
+                    0, 0,
+                    config.radius, config.radius,
+                    0, 2 * Math.PI,
+                    false, 0
+                );
+                trackCurves[id] = curve;
+                
+                // Draw track line
+                const points = curve.getPoints(100);
+                const geometry = new THREE.BufferGeometry().setFromPoints(
+                    points.map(p => new THREE.Vector3(p.x, 0.2, p.y))
+                );
+                const material = new THREE.LineBasicMaterial({
+                    color: config.color,
+                    linewidth: 2,
+                    transparent: true,
+                    opacity: 0.6
+                });
+                scene.add(new THREE.Line(geometry, material));
+            });
+            
+            // Create train
+            trainGroup = new THREE.Group();
+            
+            // Train body
+            const bodyGeo = new THREE.BoxGeometry(6, 2.5, 2.5);
+            const bodyMat = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            body.position.y = 1.25;
+            body.castShadow = true;
+            trainGroup.add(body);
+            
+            // Body edges
+            const edges = new THREE.EdgesGeometry(bodyGeo);
+            const edgeLines = new THREE.LineSegments(edges, 
+                new THREE.LineBasicMaterial({ color: 0xE9D7BE }));
+            edgeLines.position.y = 1.25;
+            trainGroup.add(edgeLines);
+            
+            // Simplified wheels (4)
+            const wheelPositions = [
+                { x: 2, z: -1 },
+                { x: 2, z: 1 },
+                { x: -2, z: -1 },
+                { x: -2, z: 1 }
+            ];
+            
+            wheelPositions.forEach(pos => {
+                const wheel = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.5, 0.5, 0.15, 16),
+                    new THREE.MeshLambertMaterial({ color: 0x333333 })
+                );
+                wheel.rotation.z = Math.PI / 2;
+                wheel.position.set(pos.x, 0.5, pos.z);
+                wheel.castShadow = true;
+                trainGroup.add(wheel);
+                wheels.push(wheel);
+            });
+            
+            scene.add(trainGroup);
+            
+            // Window resize
+            window.addEventListener('resize', () => {
+                camera.aspect = container.clientWidth / container.clientHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(container.clientWidth, container.clientHeight);
+            });
+            
+            console.log('✅ GUI initialized: 5 tracks + train');
+        }
+
+        function updateGUI() {
+            // Move train
+            state.trainPosition += 0.001;
+            if (state.trainPosition >= 1) state.trainPosition = 0;
+            
+            // Get position on current track
+            const curve = trackCurves[state.currentTrack];
+            const point = curve.getPoint(state.trainPosition);
+            trainGroup.position.set(point.x, 0, point.y);
+            
+            // Look ahead for rotation
+            const lookAhead = curve.getPoint((state.trainPosition + 0.01) % 1);
+            trainGroup.lookAt(lookAhead.x, 0, lookAhead.y);
+            
+            // Rotate wheels
+            wheels.forEach(wheel => {
+                wheel.rotation.z += 0.05;
+            });
+            
+            // Update UI
+            document.getElementById('position').textContent = 
+                Math.floor(state.trainPosition * 100) + '%';
+            
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        // ========================================
+        // CHAT: NEGOTIATION SYSTEM (from thousand-tetrad)
+        // ========================================
+        
+        function addMessage(role, text) {
+            state.messages.push({ role, text });
+            
+            const container = document.getElementById('messages');
+            const msg = document.createElement('div');
+            msg.className = `msg ${role}`;
+            msg.innerHTML = `
+                <div class="msg-role">${role}</div>
+                <div>${text}</div>
+            `;
+            container.appendChild(msg);
+            container.scrollTop = container.scrollHeight;
+            
+            document.getElementById('msg-count').textContent = state.messages.length;
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('input');
+            const text = input.value.trim();
+            if (!text) return;
+            
+            addMessage('user', text);
+            input.value = '';
+            
+            // Mock assistant response
+            setTimeout(() => {
+                addMessage('assistant', 
+                    'I understand. At the next junction, you\'ll have four choices based on the tetrad analysis.');
+            }, 500);
+        }
+
+        function switchTrack(trackId) {
+            state.currentTrack = trackId;
+            const config = TRACKS[trackId];
+            
+            document.getElementById('track-name').textContent = config.name;
+            
+            addMessage('system', `Switched to ${config.name}`);
+            
+            console.log('Switched to', trackId);
+        }
+
+        // ========================================
+        // EVENT HANDLERS
+        // ========================================
+        
+        function setupEvents() {
+            // Send button
+            document.getElementById('send-btn').addEventListener('click', sendMessage);
+            
+            // Enter key
+            document.getElementById('input').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                }
+            });
+            
+            // Track buttons
+            document.querySelectorAll('[data-track]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const track = btn.dataset.track;
+                    switchTrack(track);
+                });
+            });
+        }
+
+        // ========================================
+        // MAIN LOOP
+        // ========================================
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            updateGUI();
+        }
+
+        // ========================================
+        // START
+        // ========================================
+        
+        window.addEventListener('DOMContentLoaded', () => {
+            initGUI();
+            setupEvents();
+            animate();
+            console.log('🚂 Railway Junction Simplified - Running');
+        });
+    </script>
+</body>
+</html>
