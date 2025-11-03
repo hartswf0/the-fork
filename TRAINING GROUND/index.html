@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Orbital Navigation Training Ground</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: linear-gradient(135deg, #0b0d10 0%, #1a1d24 100%);
+      color: #e9e9e9;
+      min-height: 100vh;
+      padding: 40px 20px;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    header {
+      text-align: center;
+      margin-bottom: 48px;
+    }
+    
+    h1 {
+      font-size: 3rem;
+      margin-bottom: 0.5rem;
+      background: linear-gradient(135deg, #ff4d2e 0%, #ff8866 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    .tagline {
+      font-size: 1.2rem;
+      color: #9aa3ad;
+      margin-bottom: 1rem;
+    }
+    
+    .intro {
+      max-width: 700px;
+      margin: 0 auto 48px;
+      text-align: center;
+      line-height: 1.8;
+      color: #c9d1d9;
+    }
+    
+    .cta {
+      display: inline-block;
+      padding: 16px 32px;
+      background: #ff4d2e;
+      color: white;
+      text-decoration: none;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 1.1rem;
+      margin: 8px;
+      transition: all 0.2s;
+      box-shadow: 0 4px 12px rgba(255, 77, 46, 0.3);
+    }
+    
+    .cta:hover {
+      background: #ff6f55;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(255, 77, 46, 0.4);
+    }
+    
+    .cta-secondary {
+      background: #1a1d24;
+      border: 2px solid #2a323a;
+      color: #e9e9e9;
+      box-shadow: none;
+    }
+    
+    .cta-secondary:hover {
+      background: #2a323a;
+      border-color: #ff4d2e;
+    }
+    
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 24px;
+      margin-bottom: 48px;
+    }
+    
+    .card {
+      background: #0e1116;
+      border: 1px solid #2a323a;
+      border-radius: 12px;
+      padding: 24px;
+      transition: all 0.2s;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 4px;
+      height: 100%;
+      background: var(--accent-color, #ff4d2e);
+    }
+    
+    .card:hover {
+      border-color: var(--accent-color, #ff4d2e);
+      transform: translateY(-4px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    }
+    
+    .card-icon {
+      font-size: 2.5rem;
+      margin-bottom: 16px;
+    }
+    
+    .card-title {
+      font-size: 1.4rem;
+      font-weight: 700;
+      margin-bottom: 12px;
+      color: #fff;
+    }
+    
+    .card-desc {
+      color: #9aa3ad;
+      line-height: 1.6;
+      margin-bottom: 16px;
+    }
+    
+    .card-link {
+      display: inline-block;
+      padding: 8px 16px;
+      background: #1a1d24;
+      color: #e9e9e9;
+      text-decoration: none;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+    }
+    
+    .card-link:hover {
+      background: var(--accent-color, #ff4d2e);
+      color: white;
+    }
+    
+    .section-title {
+      font-size: 2rem;
+      margin-bottom: 24px;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .section-title::before {
+      content: '';
+      width: 4px;
+      height: 32px;
+      background: #ff4d2e;
+      border-radius: 2px;
+    }
+    
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 16px;
+      margin-bottom: 48px;
+    }
+    
+    .feature {
+      background: #1a1d24;
+      padding: 16px;
+      border-radius: 8px;
+      border: 1px solid #2a323a;
+    }
+    
+    .feature-icon {
+      font-size: 1.5rem;
+      margin-bottom: 8px;
+    }
+    
+    .feature-title {
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    
+    .feature-text {
+      font-size: 0.9rem;
+      color: #9aa3ad;
+    }
+    
+    .status {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    
+    .status.operational {
+      background: #1a3a1a;
+      color: #4a9;
+    }
+    
+    footer {
+      text-align: center;
+      margin-top: 64px;
+      padding-top: 32px;
+      border-top: 1px solid #2a323a;
+      color: #9aa3ad;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🌌 Orbital Navigation Training Ground</h1>
+      <p class="tagline">Master decision-making in complex systems</p>
+      <div style="margin-top: 24px;">
+        <a href="orbit-graph.html" class="cta">🚀 Launch Orbit-Graph</a>
+        <a href="training-exercises.html" class="cta-secondary">Start Training</a>
+      </div>
+    </header>
+    
+    <div class="intro">
+      <p>
+        <strong>Orbit-Graph</strong> is a training environment where you learn to negotiate with autonomous agents,
+        read system dynamics, and understand how decisions ripple through interconnected networks.
+        It's not a simulation—it's a <strong>symbiotic decision architecture</strong> where outcomes emerge
+        from the negotiation between your intent and system resistance.
+      </p>
+    </div>
+    
+    <!-- Core Resources -->
+    <section>
+      <h2 class="section-title">📚 Core Resources</h2>
+      <div class="grid">
+        <div class="card" style="--accent-color: #ff4d2e;">
+          <div class="card-icon">🎓</div>
+          <div class="card-title">Training Curriculum</div>
+          <div class="card-desc">
+            Complete 5-module course covering foundations, interactions, advanced dynamics, design patterns, and mastery.
+            Self-paced with exercises and assessments.
+          </div>
+          <a href="TRAINING-CURRICULUM.md" class="card-link">Read Curriculum →</a>
+        </div>
+        
+        <div class="card" style="--accent-color: #4a9;">
+          <div class="card-icon">🎯</div>
+          <div class="card-title">Training Exercises</div>
+          <div class="card-desc">
+            8 hands-on exercises from beginner to advanced. Practice collisions, probabilistic responses,
+            scene reshaping, physics mode, and scenario design.
+          </div>
+          <a href="training-exercises.html" class="card-link">Start Exercises →</a>
+        </div>
+        
+        <div class="card" style="--accent-color: #9966ff;">
+          <div class="card-icon">🚀</div>
+          <div class="card-title">Quick Start Guide</div>
+          <div class="card-desc">
+            Get up and running in 5 minutes. Learn the basic controls, understand what you're seeing,
+            and make your first decision with visible consequences.
+          </div>
+          <a href="QUICK-START.md" class="card-link">Quick Start →</a>
+        </div>
+      </div>
+    </section>
+    
+    <!-- Technical Guides -->
+    <section>
+      <h2 class="section-title">🔬 Technical Guides</h2>
+      <div class="grid">
+        <div class="card" style="--accent-color: #ff8866;">
+          <div class="card-icon">⚛️</div>
+          <div class="card-title">Physics Mode Guide</div>
+          <div class="card-desc">
+            Master N-body gravity simulation. Learn to release entities, understand orbital mechanics,
+            detect crashes vs stable orbits, and design physics scenarios.
+          </div>
+          <a href="PHYSICS-MODE-GUIDE.md" class="card-link">Learn Physics →</a>
+        </div>
+        
+        <div class="card" style="--accent-color: #f8d66a;">
+          <div class="card-icon">🎨</div>
+          <div class="card-title">Visual Guide</div>
+          <div class="card-desc">
+            Interactive demo of glowing indicators. See the decision matrix, understand recommendations,
+            and learn the animation behavior.
+          </div>
+          <a href="VISUAL-GUIDE.html" class="card-link">View Guide →</a>
+        </div>
+        
+        <div class="card" style="--accent-color: #88aaff;">
+          <div class="card-icon">🎮</div>
+          <div class="card-title">Controls Update</div>
+          <div class="card-desc">
+            Complete control reference. Minimal interface design, moon system documentation,
+            and drift mechanics explained.
+          </div>
+          <a href="CONTROLS-UPDATE.md" class="card-link">Read Docs →</a>
+        </div>
+      </div>
+    </section>
+    
+    <!-- Understanding -->
+    <section>
+      <h2 class="section-title">💡 Understanding the System</h2>
+      <div class="grid">
+        <div class="card" style="--accent-color: #4a9;">
+          <div class="card-icon">📊</div>
+          <div class="card-title">Affordances</div>
+          <div class="card-desc">
+            Compare orbit-graph vs railway-full-integration. Understand main affordances,
+            glowing indicators, and scene reshaping visualization.
+          </div>
+          <a href="AFFORDANCES.md" class="card-link">Compare Systems →</a>
+        </div>
+        
+        <div class="card" style="--accent-color: #ff6644;">
+          <div class="card-icon">🧬</div>
+          <div class="card-title">What It's Really About</div>
+          <div class="card-desc">
+            Deep dive into symbiogenesis, decision architectures, and why orbit-graph isn't
+            a game or tool—it's a training ground for decision muscles.
+          </div>
+          <a href="AFFORDANCES.md#what-its-really-about" class="card-link">Read Philosophy →</a>
+        </div>
+      </div>
+    </section>
+    
+    <!-- System Features -->
+    <section>
+      <h2 class="section-title">✨ System Features</h2>
+      <div class="feature-grid">
+        <div class="feature">
+          <div class="feature-icon">🌍</div>
+          <div class="feature-title">5 Media Eras</div>
+          <div class="feature-text">Print, Radio, TV, Internet, AI as orbital bodies with independent tracking</div>
+        </div>
+        
+        <div class="feature">
+          <div class="feature-icon">🔴</div>
+          <div class="feature-title">Glowing Indicators</div>
+          <div class="feature-text">Pulsing orange dots show recommended actions based on context</div>
+        </div>
+        
+        <div class="feature">
+          <div class="feature-icon">🌊</div>
+          <div class="feature-title">Scene Reshaping</div>
+          <div class="feature-text">Decisions visibly transform the world with animations and entity scattering</div>
+        </div>
+        
+        <div class="feature">
+          <div class="feature-icon">🎲</div>
+          <div class="feature-title">Probabilistic Decisions</div>
+          <div class="feature-text">Entities calculate Bayesian probability and sometimes refuse your requests</div>
+        </div>
+        
+        <div class="feature">
+          <div class="feature-icon">🌙</div>
+          <div class="feature-title">Moon System</div>
+          <div class="feature-text">Add satellites that orbit orbital bodies for nested complexity</div>
+        </div>
+        
+        <div class="feature">
+          <div class="feature-icon">⚛️</div>
+          <div class="feature-title">N-Body Physics</div>
+          <div class="feature-text">Real gravitational simulation with crashes, stable orbits, and escape trajectories</div>
+        </div>
+        
+        <div class="feature">
+          <div class="feature-icon">💬</div>
+          <div class="feature-title">Chat Interface</div>
+          <div class="feature-text">Conversational UI with embedded controls and narrative feedback</div>
+        </div>
+        
+        <div class="feature">
+          <div class="feature-icon">🔄</div>
+          <div class="feature-title">McLuhan Tetrad</div>
+          <div class="feature-text">5 rings reshape reality: amplify, invert, retrieve, fade, or observe neutrally</div>
+        </div>
+      </div>
+    </section>
+    
+    <!-- Quick Links -->
+    <section>
+      <h2 class="section-title">🔗 Quick Links</h2>
+      <div style="display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 48px;">
+        <a href="orbit-graph.html" class="cta">Launch Orbit-Graph</a>
+        <a href="training-exercises.html" class="cta-secondary">Training Exercises</a>
+        <a href="TRAINING-CURRICULUM.md" class="cta-secondary">Full Curriculum</a>
+        <a href="QUICK-START.md" class="cta-secondary">Quick Start</a>
+        <a href="PHYSICS-MODE-GUIDE.md" class="cta-secondary">Physics Guide</a>
+        <a href="VISUAL-GUIDE.html" class="cta-secondary">Visual Guide</a>
+        <a href="test-controls.html" class="cta-secondary">Control Test</a>
+      </div>
+    </section>
+    
+    <!-- System Status -->
+    <section>
+      <h2 class="section-title">🔧 System Status</h2>
+      <div style="background: #0e1116; border: 1px solid #2a323a; border-radius: 12px; padding: 24px;">
+        <div style="margin-bottom: 16px;">
+          <span class="status operational">✓ All Systems Operational</span>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; font-size: 0.9rem; color: #9aa3ad;">
+          <div>✅ Collision tracking (all 5 bodies)</div>
+          <div>✅ Glowing indicators</div>
+          <div>✅ Scene reshaping animations</div>
+          <div>✅ Physics mode (N-body gravity)</div>
+          <div>✅ Moon system</div>
+          <div>✅ Drift control</div>
+          <div>✅ Chat interface</div>
+          <div>✅ Probabilistic responses</div>
+        </div>
+        <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #2a323a;">
+          <strong>Last Updated:</strong> 2025-11-03<br>
+          <strong>Version:</strong> 1.0 (Complete Training System)<br>
+          <strong>File Count:</strong> 11 resources
+        </div>
+      </div>
+    </section>
+    
+    <!-- Learning Path -->
+    <section>
+      <h2 class="section-title">🎓 Recommended Learning Path</h2>
+      <div style="background: #0e1116; border: 1px solid #2a323a; border-radius: 12px; padding: 24px;">
+        <ol style="margin-left: 20px; line-height: 2; color: #c9d1d9;">
+          <li><strong>Start:</strong> Read <a href="QUICK-START.md" style="color: #ff4d2e;">QUICK-START.md</a> (5 minutes)</li>
+          <li><strong>Experience:</strong> Open <a href="orbit-graph.html" style="color: #ff4d2e;">orbit-graph.html</a> and make your first decision (10 minutes)</li>
+          <li><strong>Learn:</strong> Read <a href="AFFORDANCES.md" style="color: #ff4d2e;">AFFORDANCES.md</a> to understand what it's really about (15 minutes)</li>
+          <li><strong>Practice:</strong> Complete <a href="training-exercises.html" style="color: #ff4d2e;">Exercises 1-3</a> (beginner) (30 minutes)</li>
+          <li><strong>Study:</strong> Read <a href="TRAINING-CURRICULUM.md" style="color: #ff4d2e;">TRAINING-CURRICULUM.md</a> Modules 1-2 (1 hour)</li>
+          <li><strong>Practice:</strong> Complete <a href="training-exercises.html" style="color: #ff4d2e;">Exercises 4-5</a> (intermediate) (30 minutes)</li>
+          <li><strong>Advanced:</strong> Learn <a href="PHYSICS-MODE-GUIDE.md" style="color: #ff4d2e;">Physics Mode</a> and do all 5 exercises (1 hour)</li>
+          <li><strong>Practice:</strong> Complete <a href="training-exercises.html" style="color: #ff4d2e;">Exercises 6-8</a> (advanced) (1 hour)</li>
+          <li><strong>Mastery:</strong> Complete <a href="TRAINING-CURRICULUM.md" style="color: #ff4d2e;">Module 5</a> and Final Project (2 hours)</li>
+        </ol>
+        <div style="margin-top: 24px; padding: 16px; background: #1a1d24; border-radius: 8px; border-left: 4px solid #4a9;">
+          <strong>Total Time:</strong> 8-12 hours (self-paced)<br>
+          <strong>Outcome:</strong> Fluency in systems thinking and probabilistic decision-making
+        </div>
+      </div>
+    </section>
+    
+    <footer>
+      <p>Orbital Navigation Training Ground v1.0</p>
+      <p style="margin-top: 8px;">A symbiotic decision architecture for training complex systems thinking</p>
+      <p style="margin-top: 16px; font-size: 0.8rem;">
+        Built with Three.js, Tone.js, and emergent narrative systems<br>
+        All systems operational ✓
+      </p>
+    </footer>
+  </div>
+</body>
+</html>

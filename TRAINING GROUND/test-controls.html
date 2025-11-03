@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Control Test</title>
+  <style>
+    body {
+      background: #0b0d10;
+      color: #e9e9e9;
+      font-family: system-ui;
+      padding: 40px;
+    }
+    .control {
+      background: #0e1116;
+      border: 1px solid #2a323a;
+      border-radius: 8px;
+      padding: 10px;
+      margin: 20px 0;
+      max-width: 400px;
+    }
+    button {
+      cursor: pointer;
+      font-family: inherit;
+    }
+    #output {
+      margin-top: 20px;
+      padding: 12px;
+      background: #1a1d24;
+      border-radius: 8px;
+      min-height: 100px;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+  <h1>🎮 Control Authority Test</h1>
+  
+  <div class="control">
+    <div style="display:flex; gap:6px; align-items:center; margin-bottom:6px;">
+      <button onclick="changeDrift(-1)" style="min-width:32px; height:32px; background:#1a1d24; border:1px solid #ff4d2e; border-radius:6px; color:#ff4d2e; font-weight:700;">−</button>
+      <div style="flex:1; text-align:center; color:#9aa3ad; font-size:10px;">
+        <div>DRIFT <span id="driftValue" style="color:#ff4d2e; font-weight:700;">18</span></div>
+      </div>
+      <button onclick="changeDrift(1)" style="min-width:32px; height:32px; background:#1a1d24; border:1px solid #ff4d2e; border-radius:6px; color:#ff4d2e; font-weight:700;">+</button>
+    </div>
+    <div style="display:flex; gap:4px;">
+      <button onclick="addMoon()" style="flex:1; padding:6px; background:#1a3a1a; border:1px solid #4a9; color:#4a9; border-radius:6px; font-size:10px; font-weight:600;">🌙 Add Moon</button>
+      <button onclick="reset()" style="flex:1; padding:6px; background:#1a1d24; border:1px solid #2a323a; color:#9aa3ad; border-radius:6px; font-size:10px;">↻ Reset</button>
+    </div>
+  </div>
+  
+  <div id="output"></div>
+  
+  <script>
+    let drift = 18;
+    let moons = [];
+    const output = document.getElementById('output');
+    
+    function log(msg) {
+      const time = new Date().toLocaleTimeString();
+      output.innerHTML = `[${time}] ${msg}\n` + output.innerHTML;
+    }
+    
+    function changeDrift(dir) {
+      drift = Math.max(0, Math.min(100, drift + (dir * 10)));
+      document.getElementById('driftValue').textContent = drift;
+      log(`🌌 Drift ${dir > 0 ? 'increased' : 'decreased'} to ${drift}`);
+    }
+    
+    function addMoon() {
+      const types = ['📡 Satellite', '🛰️ Probe', '🌙 Moon', '💫 Comet', '☄️ Asteroid'];
+      const bodies = ['Print Era', 'Radio Era', 'TV Era', 'Internet Era', 'AI Era'];
+      const type = types[Math.floor(Math.random() * types.length)];
+      const host = bodies[Math.floor(Math.random() * bodies.length)];
+      const name = `${type} (${host})`;
+      const radius = (2 + Math.random() * 2).toFixed(1);
+      const speed = ((0.02 + Math.random() * 0.03) * 100).toFixed(1);
+      
+      moons.push({ name, host, radius, speed });
+      
+      log(`🌙 <strong>${name}</strong> added\n    🪐 Orbiting: ${host}\n    📏 Distance: ${radius} units\n    ⚡ Speed: ${speed}%\n    💫 Total moons: ${moons.length}`);
+    }
+    
+    function reset() {
+      drift = 18;
+      document.getElementById('driftValue').textContent = '18';
+      log(`🔄 Reset: drift 18, direction forward, ${moons.length} moons preserved`);
+    }
+    
+    log('✅ Controls initialized - test them now!');
+  </script>
+</body>
+</html>

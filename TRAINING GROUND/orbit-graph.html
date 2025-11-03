@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>🚂 Railway Junction - Full Integration</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='75' font-size='80'>🚂</text></svg>">
+  <title>🌌 Orbital Navigation - Training Ground</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='75' font-size='80'>🛸</text></svg>">
   
   <!-- PARASITIC DEPENDENCIES -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
@@ -13,8 +13,8 @@
   
   <style>
     /* ========================================
-       FOUNDATION: CSS from thousand-tetrad-00.html
-       WITH: Train viewport integration
+       ORBITAL NAVIGATION TRAINING GROUND
+       Inspired by: t-01.html minimal space aesthetic
        ======================================== */
     
     * {
@@ -30,21 +30,21 @@
     }
 
     body {
-      --bg: #03180c;
-      --panel: #052010;
-      --panel-dark: #03140d;
-      --border: #0c3a23;
-      --border-light: #1b6e3e;
-      --text: #aef3c1;
-      --text-muted: #5ea275;
-      --accent: #56ff9f;
-      --accent-soft: rgba(86, 255, 159, 0.12);
-      --accent-glow: rgba(86, 255, 159, 0.32);
+      --bg: #0b0d10;
+      --panel: #11151aee;
+      --panel-dark: #0e1116aa;
+      --border: #2a323a;
+      --border-light: #3a4249;
+      --text: #e9e9e9;
+      --text-muted: #9aa3ad;
+      --accent: #ff4d2e;
+      --accent-soft: rgba(255, 77, 46, 0.12);
+      --accent-glow: rgba(255, 77, 46, 0.32);
       --danger: #ff5c7c;
       --success: #56ff9f;
-      --grid-highlight: rgba(86, 255, 159, 0.08);
+      --grid-highlight: rgba(255, 77, 46, 0.08);
       --shadow: rgba(0, 0, 0, 0.45);
-      --overlay-backdrop: rgba(4, 20, 12, 0.88);
+      --overlay-backdrop: rgba(11, 13, 16, 0.88);
       font-family: 'Courier New', monospace;
       font-size: clamp(11px, 2.4vw, 13px);
       background: var(--bg);
@@ -483,7 +483,7 @@
     }
     
     /* ========================================
-       TRAIN VIEWPORT (NEW - embedded in channel)
+       ORBITAL VIEWPORT (embedded in channel)
        ======================================== */
     
     .train-viewport {
@@ -494,7 +494,15 @@
       border-bottom: 1px solid var(--border);
       flex-shrink: 0;
       min-height: 200px;
-      max-height: none; /* Allow expansion beyond default */
+      max-height: none;
+      /* Starfield background */
+      background-image: radial-gradient(2px 2px at 20px 30px, white, transparent),
+                        radial-gradient(2px 2px at 60px 70px, white, transparent),
+                        radial-gradient(1px 1px at 50px 50px, white, transparent),
+                        radial-gradient(1px 1px at 130px 80px, white, transparent),
+                        radial-gradient(2px 2px at 90px 10px, white, transparent);
+      background-size: 200px 200px;
+      background-repeat: repeat;
     }
     
     .train-viewport.collapsed {
@@ -1226,12 +1234,15 @@
     });
 
     const TRACK_CONFIGS = {
-      main: { radius: 15, color: 0xffffff, label: 'MAIN LINE' },
-      enhance: { radius: 18, color: 0x56ff9f, label: 'ENHANCE' },
-      reverse: { radius: 12, color: 0xff5c7c, label: 'REVERSE' },
-      retrieve: { radius: 20, color: 0x569fff, label: 'RETRIEVE' },
-      obsolesce: { radius: 10, color: 0x888888, label: 'OBSOLESCE' }
+      main: { radius: 15, color: 0xffffff, label: 'MAIN RING' },
+      enhance: { radius: 18, color: 0x56ff9f, label: 'AMPLIFICATION RING' },
+      reverse: { radius: 12, color: 0xff5c7c, label: 'INVERSION RING' },
+      retrieve: { radius: 20, color: 0x569fff, label: 'MEMORY RING' },
+      obsolesce: { radius: 10, color: 0x888888, label: 'FADE RING' }
     };
+    
+    // Alias for backward compatibility
+    const RING_CONFIGS = TRACK_CONFIGS;
     
     const MEDIA_ERAS = {
       'Print': { color: 0x8B4513, symbol: '📰' },
@@ -1425,136 +1436,77 @@ Make entities feel alive - they have personalities, goals, and can be convinced 
     // STAGE 3: TRAIN SYSTEM (from train-brain-19)
     // ========================================
     
-    TestSuite.stage = 'STAGE-3-TRAIN';
-    TestSuite.log('🚂', TestSuite.stage, 'Building train system...');
+    TestSuite.stage = 'STAGE-3-ORBITAL';
+    TestSuite.log('🌌', TestSuite.stage, 'Building orbital system...');
     
-    function createWheel() {
-      const wheelRadius = 0.3;  // Smaller wheels for smaller cars
-      const wheelThickness = 0.1;
-      const wheelGroup = new THREE.Group();
+    // Create orbital body (sphere with glow)
+    function createOrbitalBody(size = 0.8, color = 0xff4d2e, type = 'default') {
+      const bodyGroup = new THREE.Group();
       
-      // Backing ring
-      const backingRingGeometry = new THREE.RingGeometry(
-        wheelRadius * 0.31,
-        wheelRadius * 0.315,
-        32, 1
-      );
-      const backingMaterial = new THREE.MeshStandardMaterial({
-        color: 0x880000,
-        metalness: 0.2,
+      // Main sphere
+      const geometry = new THREE.SphereGeometry(size, 32, 32);
+      const material = new THREE.MeshStandardMaterial({
+        color: color,
+        metalness: 0.3,
         roughness: 0.7,
-        side: THREE.DoubleSide,
-        emissive: 0x330000,
+        emissive: color,
         emissiveIntensity: 0.4
       });
-      const backing = new THREE.Mesh(backingRingGeometry, backingMaterial);
-      backing.rotation.y = Math.PI / 2;
-      wheelGroup.add(backing);
+      const sphere = new THREE.Mesh(geometry, material);
+      sphere.castShadow = true;
+      sphere.receiveShadow = true;
+      bodyGroup.add(sphere);
       
-      // Middle ring
-      const middleRingGeometry = new THREE.TorusGeometry(
-        wheelRadius * 0.85,
-        wheelThickness * 0.12,
-        32, 8, Math.PI * 2
-      );
-      const middleRingMaterial = new THREE.MeshStandardMaterial({
-        color: 0xEAE0C8,
-        metalness: 0.1,
-        roughness: 0.7,
-        emissive: 0x111111,
-        emissiveIntensity: 0.05
+      // Glow ring
+      const glowGeometry = new THREE.RingGeometry(size * 1.2, size * 1.3, 32);
+      const glowMaterial = new THREE.MeshBasicMaterial({
+        color: color,
+        transparent: true,
+        opacity: 0.3,
+        side: THREE.DoubleSide
       });
-      const middleRing = new THREE.Mesh(middleRingGeometry, middleRingMaterial);
-      wheelGroup.add(middleRing);
+      const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+      glow.rotation.x = Math.PI / 2;
+      bodyGroup.add(glow);
       
-      // Tire
-      const tireGeometry = new THREE.TorusGeometry(
-        wheelRadius - (wheelThickness * 0.05),
-        wheelThickness * 0.1,
-        32, 8, Math.PI * 2
-      );
-      const tireMaterial = new THREE.MeshStandardMaterial({
-        color: 0x111111,
-        metalness: 0.1,
-        roughness: 0.9
-      });
-      const tire = new THREE.Mesh(tireGeometry, tireMaterial);
-      wheelGroup.add(tire);
+      // Wireframe overlay
+      const wireframe = new THREE.WireframeGeometry(geometry);
+      const line = new THREE.LineSegments(wireframe,
+        new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.1 }));
+      bodyGroup.add(line);
       
-      // Spokes
-      const spokeCount = 12;
-      const spokeMaterial = new THREE.MeshStandardMaterial({
-        color: 0x888888,
-        metalness: 0.6,
-        roughness: 0.5
-      });
+      bodyGroup.userData.bodyType = type;
       
-      for (let i = 0; i < spokeCount; i++) {
-        const angle = (i / spokeCount) * Math.PI * 2;
-        const spokeGeometry = new THREE.BoxGeometry(
-          wheelRadius * 0.35,
-          wheelThickness * 0.08,
-          wheelThickness * 0.08
-        );
-        const spoke = new THREE.Mesh(spokeGeometry, spokeMaterial);
-        spoke.position.set(
-          Math.cos(angle) * (wheelRadius * 0.575),
-          Math.sin(angle) * (wheelRadius * 0.575),
-          0
-        );
-        spoke.rotation.z = angle;
-        wheelGroup.add(spoke);
-      }
-      
-      // Hub
-      const hubGeometry = new THREE.CylinderGeometry(
-        wheelRadius * 0.27,
-        wheelRadius * 0.27,
-        wheelThickness * 1.2,
-        16
-      );
-      const hubMaterial = new THREE.MeshStandardMaterial({
-        color: 0x444444,
-        metalness: 0.75,
-        roughness: 0.6
-      });
-      const hub = new THREE.Mesh(hubGeometry, hubMaterial);
-      wheelGroup.add(hub);
-      
-      wheelGroup.traverse(child => {
-        if (child.isMesh) {
-          child.castShadow = true;
-          child.receiveShadow = true;
-        }
-      });
-      
-      TestSuite.log('🎡', TestSuite.stage, `Wheel created: ${wheelGroup.children.length} components`);
-      return wheelGroup;
+      TestSuite.log('🪐', TestSuite.stage, `Orbital body created: ${type} (size: ${size})`);
+      return bodyGroup;
     }
     
-    function createTrainBodyMesh(isLocomotive, eraType) {
-      const bodyLength = isLocomotive ? 2.5 : 2;
-      const bodyHeight = isLocomotive ? 1.5 : 1.2;
-      const bodyWidth = 1.5;
+    // Create central star/hub
+    function createCentralStar() {
+      const starGroup = new THREE.Group();
       
-      const bodyGeometry = new THREE.BoxGeometry(bodyLength, bodyHeight, bodyWidth);
-      const eraColor = eraType ? MEDIA_ERAS[eraType].color : 0x2a2a2a;
-      const bodyMaterial = new THREE.MeshLambertMaterial({
-        color: eraColor,
-        transparent: true,
-        opacity: 0.9
+      // Core
+      const coreGeo = new THREE.SphereGeometry(2, 32, 32);
+      const coreMat = new THREE.MeshStandardMaterial({
+        color: 0xffaa00,
+        emissive: 0xffaa00,
+        emissiveIntensity: 1.0
       });
-      const bodyMesh = new THREE.Mesh(bodyGeometry, bodyMaterial);
-      bodyMesh.castShadow = true;
-      bodyMesh.receiveShadow = true;
+      const core = new THREE.Mesh(coreGeo, coreMat);
+      starGroup.add(core);
       
-      const bodyEdges = new THREE.EdgesGeometry(bodyGeometry);
-      const bodyOutline = new THREE.LineSegments(bodyEdges, 
-        new THREE.LineBasicMaterial({ color: 0xE9D7BE }));
-      bodyMesh.add(bodyOutline);
+      // Corona glow
+      const coronaGeo = new THREE.SphereGeometry(2.5, 32, 32);
+      const coronaMat = new THREE.MeshBasicMaterial({
+        color: 0xffdd66,
+        transparent: true,
+        opacity: 0.3
+      });
+      const corona = new THREE.Mesh(coronaGeo, coronaMat);
+      starGroup.add(corona);
       
-      TestSuite.log('🚃', TestSuite.stage, `Train body created: ${isLocomotive ? 'locomotive' : 'car'} (${eraType || 'default'})`);
-      return bodyMesh;
+      TestSuite.log('⭐', TestSuite.stage, 'Central star created');
+      return starGroup;
     }
     
     function createTrackCurve(radius) {
@@ -1567,33 +1519,33 @@ Make entities feel alive - they have personalities, goals, and can be convinced 
     }
     
     TestSuite.assert(
-      'createWheel function defined',
-      typeof createWheel === 'function',
-      'Detailed wheel creation with spokes'
+      'createOrbitalBody function defined',
+      typeof createOrbitalBody === 'function',
+      'Creates spherical orbital elements with glow'
     );
     
     TestSuite.assert(
-      'createTrainBodyMesh function defined',
-      typeof createTrainBodyMesh === 'function',
-      'Era-specific train car bodies'
+      'createCentralStar function defined',
+      typeof createCentralStar === 'function',
+      'Creates central star/hub for system'
     );
     
     TestSuite.assert(
       'createTrackCurve function defined',
       typeof createTrackCurve === 'function',
-      'Circular track path generation'
+      'Circular orbital path generation'
     );
     
-    // Test wheel creation
+    // Test orbital body creation
     try {
-      const testWheel = createWheel();
+      const testBody = createOrbitalBody(1.0, 0xff4d2e, 'test');
       TestSuite.assert(
-        'Wheel creation works',
-        testWheel && testWheel.children.length > 10,
-        `Created wheel with ${testWheel.children.length} components`
+        'Orbital body creation works',
+        testBody && testBody.children.length >= 3,
+        `Created orbital body with ${testBody.children.length} components`
       );
     } catch (e) {
-      TestSuite.assert('Wheel creation works', false, `Error: ${e.message}`);
+      TestSuite.assert('Orbital body creation works', false, `Error: ${e.message}`);
     }
     
     TestSuite.stage_summary();
@@ -1708,46 +1660,97 @@ Make entities feel alive - they have personalities, goals, and can be convinced 
       appState.currentChannelId = firstChannel.id;
       
       addMessage(firstChannel, 'system', 
-        `🚂 **RAILWAY JUNCTION SYSTEM ONLINE**
+        `🌌 **ORBITAL NAVIGATION · TRAINING GROUND**
 
-Welcome to the train simulation. You control both the train AND the narrative.
+This artifact is a live study in *decision architectures* and *symbiogenetic negotiation*: 
+a space where choices don't command outcomes—they *propose them*. Five media eras orbit 
+as autonomous agents. The grid is a negotiation surface. The rings are interpretive modes. 
+Your decisions ripple through the system, and the system argues back.
 
-🎮 **YOUR CONTROLS:**
-• **D-PAD** (↑←○→↓) - Switch between five McLuhan tetrad tracks
-• **A/B/X/Y BUTTONS** - Respond to collisions (Continue/Reverse/Collect/Delete)
-• **⏯ PAUSE** - Stop/start the train
-• **CHAT** - Talk to entities, ask questions, create scenes
+**THEORY**
 
-🛤️ **FIVE TRACKS (McLuhan Tetrad):**
-• ○ MAIN - Neutral observation, balanced narrative
-• → ENHANCE - Amplify elements, escalate situations
-• ← REVERSE - Diminish elements, create opposition
-• ↑ RETRIEVE - Bring back the past, restore lost things
-• ↓ OBSOLESCE - Push into obsolescence, fade away
+The piece riffs on *orbital mechanics as decision metaphor*: systems stabilize around attractors; 
+orbits are constraints made visible through interaction. It borrows from McLuhan's tetrad 
+(enhance, reverse, retrieve, obsolesce) and treats each as an **ontological stance**—a verb 
+that reshapes what the same entities mean. You're not in control. You're *in conversation*.
 
-💡 **HOW IT WORKS:**
-1. Train moves in a circle, sweeping the 9×9 grid
-2. When train hits entity → collision card appears
-3. Press A/B/X/Y to respond
-4. Switch tracks to change narrative mode
-5. Chat with AI to shape the scene
+This is training for probabilistic systems where outcomes aren't guaranteed, context changes 
+everything, agents have their own logic, and decisions cascade spatially and temporally. 
+You learn by *negotiating*, not commanding.
 
-🎭 **TRY THESE:**
-• "create a moral dilemma"
-• "@[entity] what do you see?"
-• "add a [type] at row 4, col 4"
-• "remove the [entity]"
-• Switch to ENHANCE → "what happens to the dog?"
+---
 
-📊 **CURRENT STATE:**
-• Track: MAIN
-• Position: 0%
-• Entities: 0
-• Train cars: 4 (Print, Radio, TV, Internet)
+**INTERACTION**
 
-✨ *Your decisions matter. Every choice branches the timeline.*
+• **Drag/Click** orbital bodies (🪐) to chat with media eras (Print, Radio, TV, Internet, AI)
+• **Switch Rings** (↑←○→↓) to change interpretive frame—same scene, different verb
+• **Encounter Decisions** (A/B/X/Y) when collisions occur—glowing dots show recommendations
+• **Physics Mode** (⚛️) enables N-body gravity—release entities and watch orbits emerge
+• **Add Moons** (🌙) for nested complexity—satellites orbit bodies that orbit the star
+• **Adjust Drift** (−/+) to tune system chaos vs harmony
 
-▶️ Type a message to begin your journey.`);
+**FIVE RINGS (McLuhan Tetrad as Operating System):**
+
+• **○ MAIN** - Neutral observation, what *is*
+• **→ AMPLIFY** - Enhancement mode, what *intensifies*
+• **← INVERT** - Opposition mode, what *reverses*
+• **↑ RETRIEVE** - Memory mode, what *returns*
+• **↓ FADE** - Obsolescence mode, what *disappears*
+
+*The same entities behave differently based on which verb you're using to observe them.*
+
+---
+
+**WHAT TO EXPECT**
+
+When you make decisions here, the system *shows you the consequence*:
+• Delete an entity → red flash, fade animation, nearby entities scatter
+• Collect an entity → Bayesian probability calculated, sometimes they refuse
+• Switch rings → AI reassembles the scene through a different interpretive lens
+• Enable physics → real gravitational dynamics emerge, orbits stabilize or crash
+
+This isn't a game (no win state). This isn't a tool (no output). This is a **training ground** 
+where you develop fluency in reading system dynamics, negotiating with autonomous agents, 
+and understanding how interpretive frames reshape reality.
+
+---
+
+**TRY THIS FIRST**
+
+1. Wait for an orbital body to hit an entity (collision menu appears)
+2. Notice the **glowing orange dots** 🔴 beside some buttons—those are contextually recommended
+3. Make a decision and watch the consequence ripple through the grid
+4. Read the chat—the system narrates what happened and why
+
+Then explore: Click bodies. Switch rings. Enable physics (⚛️). Add moons (🌙). Release entities (🎯). 
+Each action teaches something about complex systems.
+
+📊 **Current state:** Ring MAIN, Cycle 0%, 5 bodies orbiting, physics OFF
+
+✨ *"We shape our decision architectures, and thereafter they shape what decisions are possible."*
+
+▶️ **Type a message or wait for your first encounter.**`);
+      
+      // Add minimal orbital controls as interactive chat message
+      addMessage(firstChannel, 'system', `
+<div style="background:#0e1116; border:1px solid #2a323a; border-radius:8px; padding:10px; margin:6px 0; font-size:11px;">
+  <div style="display:flex; gap:6px; align-items:center; margin-bottom:6px;">
+    <button onclick="cycleOrbitalSpeed(-1)" style="min-width:32px; height:32px; background:#1a1d24; border:1px solid #ff4d2e; border-radius:6px; color:#ff4d2e; font-weight:700; cursor:pointer;">−</button>
+    <div style="flex:1; text-align:center; color:#9aa3ad; font-size:10px; letter-spacing:0.1em;">
+      <div>DRIFT <span id="driftValue" style="color:#ff4d2e; font-weight:700;">18</span></div>
+    </div>
+    <button onclick="cycleOrbitalSpeed(1)" style="min-width:32px; height:32px; background:#1a1d24; border:1px solid #ff4d2e; border-radius:6px; color:#ff4d2e; font-weight:700; cursor:pointer;">+</button>
+  </div>
+  <div style="display:flex; gap:4px; margin-bottom:6px;">
+    <button onclick="addMoonToBody()" style="flex:1; padding:6px; background:#1a3a1a; border:1px solid #4a9; color:#4a9; border-radius:6px; font-size:10px; font-weight:600; cursor:pointer;">🌙 Add Moon</button>
+    <button onclick="resetOrbits()" style="flex:1; padding:6px; background:#1a1d24; border:1px solid #2a323a; color:#9aa3ad; border-radius:6px; font-size:10px; cursor:pointer;">↻ Reset</button>
+  </div>
+  <div style="display:flex; gap:4px;">
+    <button onclick="togglePhysics()" id="physicsBtn" style="flex:1; padding:6px; background:#1a1a3a; border:1px solid #9966ff; color:#9966ff; border-radius:6px; font-size:10px; font-weight:600; cursor:pointer;">⚛️ Physics: OFF</button>
+    <button onclick="releaseEntity()" style="flex:1; padding:6px; background:#3a1a1a; border:1px solid #ff6644; color:#ff6644; border-radius:6px; font-size:10px; font-weight:600; cursor:pointer;">🎯 Release</button>
+  </div>
+</div>
+      `, true);
 
       
       // NOTE: Don't call showTetradControls() here - no DOM yet!
@@ -1785,33 +1788,54 @@ Welcome to the train simulation. You control both the train AND the narrative.
     }
     
     function updateGridPosition(channel, trainProgress) {
-      if (!channel.gridCells || !channel.trainCurve) return;
+      if (!channel.gridCells || !channel.trainCars) return;
       
-      // Get actual 3D position from train curve
-      const point = channel.trainCurve.getPoint(trainProgress);
-      const { row, col, index } = worldPosToGrid(point.x, point.y);
-      
-      // Clear previous train position glow
+      // Clear previous orbital positions
       channel.gridCells.forEach(cell => {
-        if (cell.isTrainHere && !cell.hasEntity) {
+        if (cell.isOrbitalHere && !cell.hasEntity) {
           cell.material.color.setHex(0x0f766e);
           cell.material.opacity = 0.15;
-          cell.isTrainHere = false;
+          cell.isOrbitalHere = false;
         }
       });
       
-      // Highlight current position with white glow
-      const currentCell = channel.gridCells[index];
-      if (currentCell && !currentCell.hasEntity) {
-        currentCell.material.color.setHex(0xffffff);
-        currentCell.material.opacity = 0.5;
-        currentCell.isTrainHere = true;
-      }
-      
-      // Check for junction (when train is ON an entity)
-      if (currentCell && currentCell.hasEntity) {
-        checkJunction(channel, row, col, currentCell.entityType, currentCell.entityLabel);
-      }
+      // Track ALL orbital bodies
+      channel.trainCars.forEach((body, idx) => {
+        if (!body || !body.group) return;
+        
+        const worldPos = body.group.position;
+        const { row, col, index } = worldPosToGrid(worldPos.x, worldPos.z);
+        
+        const currentCell = channel.gridCells[index];
+        if (!currentCell) return;
+        
+        // Highlight with body's color
+        if (!currentCell.hasEntity) {
+          const bodyColor = body.group.children[0]?.material?.color;
+          if (bodyColor) {
+            currentCell.material.color.copy(bodyColor);
+            currentCell.material.opacity = 0.4;
+          }
+          currentCell.isOrbitalHere = true;
+        }
+        
+        // Check for collision (when orbital body is ON an entity)
+        if (currentCell.hasEntity) {
+          // Only trigger once per body per entity
+          const collisionKey = `${idx}-${currentCell.entityLabel}`;
+          if (!channel.recentCollisions) channel.recentCollisions = new Set();
+          
+          if (!channel.recentCollisions.has(collisionKey)) {
+            channel.recentCollisions.add(collisionKey);
+            checkJunction(channel, row, col, currentCell.entityType, currentCell.entityLabel);
+            
+            // Clear after 2 seconds to allow re-collision
+            setTimeout(() => {
+              channel.recentCollisions.delete(collisionKey);
+            }, 2000);
+          }
+        }
+      });
     }
     
     // LOADING ANIMATION - show cellular automata on grid cells
@@ -2136,11 +2160,11 @@ Welcome to the train simulation. You control both the train AND the narrative.
       
       // Narrative framing based on entity type - OUTSIDE the control
       const narrativeFrames = {
-        'Obstacle': `⚠️ Train approaching **${entity.label}** - blocks path on ${channel.currentTrack.toUpperCase()} track`,
-        'Entity': `👤 **${entity.label}** on tracks ahead - ${channel.currentTrack.toUpperCase()} mode active`,
-        'Solution': `✨ **${entity.label}** detected - solution available`,
-        'Goal': `⭐ Destination **${entity.label}** in sight`,
-        'Location': `📍 Arrived at **${entity.label}**`
+        'Obstacle': `⚠️ Orbital intersection with **${entity.label}** - obstruction on ${channel.currentTrack.toUpperCase()} ring`,
+        'Entity': `👤 **${entity.label}** detected in orbit - ${channel.currentTrack.toUpperCase()} ring active`,
+        'Solution': `✨ **${entity.label}** orbital resonance - solution pattern detected`,
+        'Goal': `⭐ Approaching **${entity.label}** waypoint`,
+        'Location': `📍 Orbital coordinates: **${entity.label}**`
       };
       
       const frame = narrativeFrames[entity.type] || `⚠️ Collision with **${entity.label}**`;
@@ -2177,8 +2201,11 @@ Welcome to the train simulation. You control both the train AND the narrative.
       renderMessages(channel);
       
       if (window.Tone) {
-        const synth = new Tone.Synth().toDestination();
-        synth.triggerAttackRelease('C4', '0.2');
+        // Resume AudioContext on user interaction
+        Tone.start().then(() => {
+          const synth = new Tone.Synth().toDestination();
+          synth.triggerAttackRelease('C4', '0.2');
+        });
       }
     }
     
@@ -3635,30 +3662,77 @@ Each train car represents a media era. When user chats with cars, respond as tha
           const cell = channel.gridCells[cellIndex];
           
           if (cell) {
-            cell.classList.remove('has-entity');
-            cell.entity = null;
-            cell.textContent = '';
+            // VISUAL SCENE TRANSFORMATION: Red flash then fade
+            cell.material.color.setHex(0xff0000);
+            cell.material.opacity = 0.8;
+            
+            // Animate cell fading and shrinking
+            let fadeProgress = 0;
+            const fadeInterval = setInterval(() => {
+              fadeProgress += 0.05;
+              cell.material.opacity = 0.8 * (1 - fadeProgress);
+              if (cell.scale) {
+                cell.scale.set(1 - fadeProgress * 0.5, 1, 1 - fadeProgress * 0.5);
+              }
+              
+              if (fadeProgress >= 1) {
+                clearInterval(fadeInterval);
+                // Reset to empty state
+                cell.material.color.setHex(0x0f766e);
+                cell.material.opacity = 0.15;
+                if (cell.scale) {
+                  cell.scale.set(1, 1, 1);
+                }
+                cell.hasEntity = false;
+                cell.entityType = null;
+                cell.entityLabel = null;
+              }
+            }, 50);
           }
           
           // Remove from entities array
           entities.splice(matchIndex, 1);
           appState.gridEntities.set(channel.id, entities);
           
+          // SCENE CONSEQUENCE: Nearby entities scatter away
+          const nearbyToScatter = entities.filter(e => 
+            Math.abs(e.row - removedEntity.row) <= 1 && 
+            Math.abs(e.col - removedEntity.col) <= 1
+          );
+          
+          nearbyToScatter.forEach(nearby => {
+            const oldCell = channel.gridCells[nearby.row * 9 + nearby.col];
+            if (oldCell) {
+              oldCell.hasEntity = false;
+              oldCell.material.color.setHex(0x0f766e);
+              oldCell.material.opacity = 0.15;
+            }
+            
+            // Move entity away from kill site
+            const dx = nearby.col - removedEntity.col;
+            const dz = nearby.row - removedEntity.row;
+            nearby.col = Math.max(0, Math.min(8, nearby.col + (dx || 1)));
+            nearby.row = Math.max(0, Math.min(8, nearby.row + (dz || 1)));
+            
+            const newCell = channel.gridCells[nearby.row * 9 + nearby.col];
+            if (newCell) {
+              newCell.hasEntity = true;
+              newCell.entityType = nearby.type;
+              newCell.entityLabel = nearby.label;
+              newCell.material.color.setHex(0xffaa00);
+              newCell.material.opacity = 0.5;
+            }
+          });
+          
           const consequences = {
-            'Obstacle': 'The path is clear, but destruction leaves scars.',
-            'Entity': 'A life ended. Their story is over. Others witnessed this.',
-            'Solution': 'You destroyed the solution. The problem remains unsolved.',
-            'Goal': 'The destination is gone. Was this the right choice?',
-            'Location': 'The place is erased. Those who knew it will remember.'
+            'Obstacle': 'The path is clear, but destruction leaves scars. **Nearby entities fled in fear.**',
+            'Entity': 'A life ended. Their story is over. **Others witnessed this and scattered.**',
+            'Solution': 'You destroyed the solution. The problem remains unsolved. **Chaos spreads.**',
+            'Goal': 'The goal is destroyed. You must find another path. **The map reshuffles.**',
+            'Location': 'The waypoint is erased. **The orbital network reconfigures.**'
           };
           
-          const consequence = consequences[removedEntity.type] || 'The choice is made. There is no going back.';
-          
-          addMessage(channel, 'system', 
-            `💀 **${entityLabel} REMOVED**\n\n${removedEntity.type} eliminated from grid position (${removedEntity.row},${removedEntity.col}).\n\n⚠️ **Consequence:** ${consequence}\n\n📊 **Grid state:** ${entities.length} entities remain\n🛤️ **Track:** ${channel.currentTrack.toUpperCase()}\n\n▶️ Train continues.`);
-          channel.trainPaused = false;
-          
-          TestSuite.log('💀', 'DELETE', `Removed ${entityLabel}, ${entities.length} entities remain`);
+          addMessage(channel, 'system', `💀 **ELIMINATED:** ${entityLabel}\n\n${consequences[entityType]}\n\n🌊 **SCENE RESHAPED:** ${nearbyToScatter.length} entities relocated.`);
         } else {
           addMessage(channel, 'system', `❌ Could not remove ${entityLabel} - entity not found`);
         }
@@ -3712,9 +3786,17 @@ Each train car represents a media era. When user chats with cars, respond as tha
             const cell = channel.gridCells[cellIndex];
             
             if (cell) {
-              cell.classList.remove('has-entity');
-              cell.entity = null;
-              cell.textContent = '';
+              // VISUAL TRANSFORMATION: Green pulse then clear
+              cell.material.color.setHex(0x00ff00);
+              cell.material.opacity = 0.7;
+              
+              setTimeout(() => {
+                cell.material.color.setHex(0x0f766e);
+                cell.material.opacity = 0.15;
+                cell.hasEntity = false;
+                cell.entityType = null;
+                cell.entityLabel = null;
+              }, 500);
             }
             
             entities.splice(matchIndex, 1);
@@ -3740,7 +3822,7 @@ Each train car represents a media era. When user chats with cars, respond as tha
       }
     };
     
-    // SHOW COLLISION MENU - Ultra-compact single-line control
+    // SHOW COLLISION MENU - Ultra-compact single-line control with glowing indicators
     function showCollisionMenu(channel, entity, nearbyEntities) {
       const entityType = entity.type || 'entity';
       const entityLabel = entity.label || 'Unknown';
@@ -3755,14 +3837,51 @@ Each train car represents a media era. When user chats with cars, respond as tha
       };
       const icon = typeIcons[entityType] || '⚠';
       
+      // Determine which options are RECOMMENDED based on entity type
+      const recommendations = {
+        'Obstacle': ['reverse', 'delete'], // Avoid or remove obstacles
+        'Entity': ['collect', 'continue'],  // Engage or pass entities
+        'Solution': ['collect'],            // Collect solutions
+        'Goal': ['continue', 'collect'],    // Reach or engage goals
+        'Location': ['continue']            // Pass through locations
+      };
+      const recommended = recommendations[entityType] || [];
+      
+      // Generate glowing indicator or empty space
+      const indicator = (action) => {
+        const isRecommended = recommended.includes(action);
+        if (isRecommended) {
+          return `<div style="position:absolute; left:-10px; top:50%; transform:translateY(-50%); width:6px; height:6px; background:#ff4d2e; border-radius:50%; box-shadow:0 0 8px #ff4d2e, 0 0 12px #ff4d2e; animation:pulse 1.5s infinite;"></div>`;
+        }
+        return '';
+      };
+      
       const menu = `
+<style>
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: translateY(-50%) scale(1); }
+    50% { opacity: 0.6; transform: translateY(-50%) scale(1.3); }
+  }
+</style>
 <div style="display:flex; align-items:center; gap:8px; padding:10px 12px; background:#1a1a2a; border-left:4px solid #f66; border-radius:4px; margin:6px 0;">
   <div style="font-size:20px;">${icon}</div>
   <div style="flex:1; min-width:0; font-size:13px; font-weight:700; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${entityLabel}</div>
-  <button onclick="collisionAction('continue','${entityLabel}')" style="min-width:44px; height:44px; background:#1a3a1a; border:2px solid #4a9; color:#4a9; border-radius:6px; font-size:18px; font-weight:700; cursor:pointer;" title="Continue past (risky)">A</button>
-  <button onclick="collisionAction('reverse','${entityLabel}')" style="min-width:44px; height:44px; background:#3a1a1a; border:2px solid #f8d66a; color:#f8d66a; border-radius:6px; font-size:18px; font-weight:700; cursor:pointer;" title="Reverse train (avoid)">B</button>
-  <button onclick="collisionAction('collect','${entityLabel}')" style="min-width:44px; height:44px; background:#2a2a3a; border:2px solid #999; color:#999; border-radius:6px; font-size:18px; font-weight:700; cursor:pointer;" title="Ask to board (probabilistic)">X</button>
-  <button onclick="collisionAction('delete','${entityLabel}')" style="min-width:44px; height:44px; background:#2a1a1a; border:2px solid #f66; color:#f66; border-radius:6px; font-size:18px; font-weight:700; cursor:pointer;" title="Kill entity (permanent)">Y</button>
+  <div style="position:relative;">
+    ${indicator('continue')}
+    <button onclick="collisionAction('continue','${entityLabel}')" style="min-width:44px; height:44px; background:#1a3a1a; border:2px solid #4a9; color:#4a9; border-radius:6px; font-size:18px; font-weight:700; cursor:pointer;" title="Continue past (risky)">A</button>
+  </div>
+  <div style="position:relative;">
+    ${indicator('reverse')}
+    <button onclick="collisionAction('reverse','${entityLabel}')" style="min-width:44px; height:44px; background:#3a1a1a; border:2px solid #f8d66a; color:#f8d66a; border-radius:6px; font-size:18px; font-weight:700; cursor:pointer;" title="Reverse train (avoid)">B</button>
+  </div>
+  <div style="position:relative;">
+    ${indicator('collect')}
+    <button onclick="collisionAction('collect','${entityLabel}')" style="min-width:44px; height:44px; background:#2a2a3a; border:2px solid #999; color:#999; border-radius:6px; font-size:18px; font-weight:700; cursor:pointer;" title="Ask to board (probabilistic)">X</button>
+  </div>
+  <div style="position:relative;">
+    ${indicator('delete')}
+    <button onclick="collisionAction('delete','${entityLabel}')" style="min-width:44px; height:44px; background:#2a1a1a; border:2px solid #f66; color:#f66; border-radius:6px; font-size:18px; font-weight:700; cursor:pointer;" title="Kill entity (permanent)">Y</button>
+  </div>
   <button onclick="viewEntity('${entityLabel}')" style="min-width:44px; height:44px; background:#1a2a2a; border:2px solid #69f; color:#69f; border-radius:6px; font-size:16px; cursor:pointer;" title="Camera focus">📷</button>
 </div>
       `;
@@ -3802,6 +3921,197 @@ Each train car represents a media era. When user chats with cars, respond as tha
         addMessage(channel, 'system', `📷 Camera: **${entityLabel}**`);
         renderMessages(channel);
       }
+    };
+    
+    // ORBITAL DYNAMICS CONTROLS - Minimal and functional
+    
+    window.cycleOrbitalSpeed = function(direction) {
+      const channel = appState.channels.get(appState.currentChannelId);
+      if (!channel) return;
+      
+      if (!channel.orbitalDrift) channel.orbitalDrift = 18;
+      channel.orbitalDrift = Math.max(0, Math.min(100, channel.orbitalDrift + (direction * 10)));
+      
+      const driftEl = document.getElementById('driftValue');
+      if (driftEl) driftEl.textContent = channel.orbitalDrift;
+      
+      // Apply drift to orbital speeds IN REAL TIME
+      if (channel.trainCars) {
+        channel.trainCars.forEach((body, idx) => {
+          const baseDrift = 0.0002 * idx;
+          const driftMultiplier = 1 + (channel.orbitalDrift / 100);
+          body.orbitSpeed = (0.001 + baseDrift) * driftMultiplier;
+        });
+      }
+      
+      addMessage(channel, 'system', `🌌 Drift ${direction > 0 ? 'increased' : 'decreased'} to ${channel.orbitalDrift}`);
+      renderMessages(channel);
+    };
+    
+    window.resetOrbits = function() {
+      const channel = appState.channels.get(appState.currentChannelId);
+      if (!channel) return;
+      
+      channel.trainProgress = 0;
+      channel.orbitalDrift = 18;
+      channel.trainDirection = 1;
+      
+      const driftEl = document.getElementById('driftValue');
+      if (driftEl) driftEl.textContent = '18';
+      
+      // Reset all bodies
+      if (channel.trainCars) {
+        channel.trainCars.forEach((body, idx) => {
+          body.orbitSpeed = 0.001 + (0.0002 * idx);
+        });
+      }
+      
+      addMessage(channel, 'system', '🔄 System reset: drift 18, direction forward, collisions active');
+      renderMessages(channel);
+    };
+    
+    // MOON SYSTEM - Add entities as satellites around orbital bodies
+    window.addMoonToBody = function() {
+      const channel = appState.channels.get(appState.currentChannelId);
+      if (!channel || !channel.trainCars || channel.trainCars.length === 0) return;
+      
+      // Pick a random orbital body to orbit around
+      const hostBodyIndex = Math.floor(Math.random() * channel.trainCars.length);
+      const hostBody = channel.trainCars[hostBodyIndex];
+      const hostName = hostBody.group.userData.bodyName || 'Orbital Body';
+      
+      // Create moon entity
+      const moonTypes = ['📡 Satellite', '🛰️ Probe', '🌙 Moon', '💫 Comet', '☄️ Asteroid'];
+      const moonType = moonTypes[Math.floor(Math.random() * moonTypes.length)];
+      const moonName = `${moonType} (${hostName})`;
+      
+      // Add moon to host body's satellite array
+      if (!hostBody.moons) hostBody.moons = [];
+      
+      const moon = {
+        name: moonName,
+        angle: Math.random() * Math.PI * 2,
+        radius: 2 + Math.random() * 2, // 2-4 units from host
+        speed: 0.02 + Math.random() * 0.03, // Orbital speed around host
+        size: 0.2 + Math.random() * 0.3,
+        color: 0x88aaff
+      };
+      
+      // Create 3D moon mesh
+      const moonGeom = new THREE.SphereGeometry(moon.size, 16, 16);
+      const moonMat = new THREE.MeshPhongMaterial({
+        color: moon.color,
+        emissive: moon.color,
+        emissiveIntensity: 0.3
+      });
+      const moonMesh = new THREE.Mesh(moonGeom, moonMat);
+      moonMesh.userData.isMoon = true;
+      moonMesh.userData.moonName = moonName;
+      
+      moon.mesh = moonMesh;
+      hostBody.moons.push(moon);
+      channel.scene.add(moonMesh);
+      
+      addMessage(channel, 'system', `🌙 **${moonName}** added as satellite\n\n🪐 Orbiting: ${hostName}\n📏 Distance: ${moon.radius.toFixed(1)} units\n⚡ Speed: ${(moon.speed * 100).toFixed(1)}%\n\n💭 Moons inherit their host's orbital properties and add complexity to the system.`);
+      renderMessages(channel);
+      
+      TestSuite.log('🌙', 'MOON', `Added ${moonName} to ${hostName}`);
+    };
+    
+    // PHYSICS MODE - N-body gravity simulation
+    window.togglePhysics = function() {
+      const channel = appState.channels.get(appState.currentChannelId);
+      if (!channel) return;
+      
+      channel.physicsEnabled = !channel.physicsEnabled;
+      const btn = document.getElementById('physicsBtn');
+      if (btn) {
+        btn.textContent = channel.physicsEnabled ? '⚛️ Physics: ON' : '⚛️ Physics: OFF';
+        btn.style.background = channel.physicsEnabled ? '#2a1a3a' : '#1a1a3a';
+      }
+      
+      if (channel.physicsEnabled) {
+        // Initialize physics properties for all bodies
+        if (!channel.freeEntities) channel.freeEntities = [];
+        
+        channel.trainCars.forEach((body, idx) => {
+          // Assign mass based on size/era (Print is small/fast, AI is large/slow)
+          body.mass = 100 + (idx * 50); // Print=100, Radio=150, TV=200, Internet=250, AI=300
+          body.gravityField = body.mass * 0.5; // Gravitational influence radius
+          
+          // Current velocity is its orbital motion
+          const angle = (channel.trainProgress + (idx * 0.2)) * Math.PI * 2;
+          const radius = body.orbitRadius || 15;
+          body.velocity = {
+            x: -Math.sin(angle) * body.orbitSpeed * radius,
+            z: Math.cos(angle) * body.orbitSpeed * radius
+          };
+        });
+        
+        addMessage(channel, 'system', `⚛️ **PHYSICS ENABLED**\n\n🌍 Bodies now have gravitational fields\n📊 Masses assigned (Print: 100 → AI: 300)\n🎯 Release entities to test orbital stability\n\n💭 *Watch for tidal effects between bodies*`);
+      } else {
+        addMessage(channel, 'system', `⚛️ **PHYSICS DISABLED**\n\nBodies return to scripted orbits`);
+      }
+      
+      renderMessages(channel);
+      TestSuite.log('⚛️', 'PHYSICS', `Physics ${channel.physicsEnabled ? 'ON' : 'OFF'}`);
+    };
+    
+    // RELEASE ENTITY - Drop entity into system and watch physics
+    window.releaseEntity = function() {
+      const channel = appState.channels.get(appState.currentChannelId);
+      if (!channel || !channel.scene) return;
+      
+      if (!channel.physicsEnabled) {
+        addMessage(channel, 'system', '⚠️ Enable physics first (click ⚛️ Physics button)');
+        renderMessages(channel);
+        return;
+      }
+      
+      if (!channel.freeEntities) channel.freeEntities = [];
+      
+      // Create entity at random position
+      const angle = Math.random() * Math.PI * 2;
+      const distance = 8 + Math.random() * 20; // 8-28 units from center
+      const x = Math.cos(angle) * distance;
+      const z = Math.sin(angle) * distance;
+      
+      // Random initial velocity (perpendicular to radius for potential orbit)
+      const speedMagnitude = 0.05 + Math.random() * 0.1;
+      const vx = -Math.sin(angle) * speedMagnitude;
+      const vz = Math.cos(angle) * speedMagnitude;
+      
+      const entity = {
+        name: `Entity-${channel.freeEntities.length + 1}`,
+        mass: 1 + Math.random() * 5, // 1-6 mass
+        position: { x, y: 0.5, z },
+        velocity: { x: vx, z: vz },
+        color: 0x00ff88 + Math.floor(Math.random() * 0x7700), // Bright colors
+        size: 0.8 + Math.random() * 0.4, // Larger and more visible
+        trail: [] // Store position history for visualization
+      };
+      
+      // Create 3D mesh - MUCH more visible
+      const geom = new THREE.SphereGeometry(entity.size, 20, 20);
+      const mat = new THREE.MeshPhongMaterial({
+        color: entity.color,
+        emissive: entity.color,
+        emissiveIntensity: 0.8, // Brighter glow
+        shininess: 100
+      });
+      const mesh = new THREE.Mesh(geom, mat);
+      mesh.position.set(x, 0.5, z);
+      mesh.userData.isEntity = true;
+      mesh.userData.entityName = entity.name;
+      
+      entity.mesh = mesh;
+      channel.scene.add(mesh);
+      channel.freeEntities.push(entity);
+      
+      addMessage(channel, 'system', `🎯 **${entity.name}** released\n\n📍 Position: (${x.toFixed(1)}, ${z.toFixed(1)})\n🏹 Velocity: (${vx.toFixed(3)}, ${vz.toFixed(3)})\n⚖️ Mass: ${entity.mass.toFixed(1)}\n\n🔮 Simulating... will it find stable orbit or crash?`);
+      renderMessages(channel);
+      
+      TestSuite.log('🎯', 'RELEASE', `Entity ${entity.name} at (${x.toFixed(1)}, ${z.toFixed(1)})`);
     };
     
     function gridToWorld(row, col) {
@@ -3918,15 +4228,16 @@ Each train car represents a media era. When user chats with cars, respond as tha
           `Track: <strong>${TRACK_CONFIGS[track].label}</strong><br>Position: <strong>${Math.round(channel.trainProgress * 100)}%</strong><br>▶️ MOVING`;
       }
       
-      // Visual feedback - flash the grid and update track lines
+      // Visual feedback - flash the grid cells (Three.js meshes)
       if (channel.gridCells) {
         channel.gridCells.forEach(cell => {
-          cell.style.transition = 'background 0.5s ease';
-          const originalBg = cell.style.background;
-          cell.style.background = TRACK_CONFIGS[track].color;
-          setTimeout(() => {
-            cell.style.background = originalBg;
-          }, 300);
+          if (cell && cell.material) {
+            const originalColor = cell.material.color.getHex();
+            cell.material.color.setHex(parseInt(TRACK_CONFIGS[track].color.replace('#', '0x')));
+            setTimeout(() => {
+              cell.material.color.setHex(originalColor);
+            }, 300);
+          }
         });
       }
       
@@ -4679,41 +4990,41 @@ Each train car represents a media era. When user chats with cars, respond as tha
         scene.add(line);
       });
       
-      // Create train (locomotive + 4 cars)
-      const trainCars = [];
-      const carTypes = [null, 'Print', 'Radio', 'Television', 'Internet'];
+      // Create central star
+      const centralStar = createCentralStar();
+      centralStar.position.set(0, 1, 0);
+      scene.add(centralStar);
       
-      carTypes.forEach((eraType, idx) => {
-        const isLocomotive = idx === 0;
-        const carGroup = new THREE.Group();
-        carGroup.userData.isTrain = true; // Mark for raycaster
-        carGroup.userData.carIndex = idx;
-        carGroup.userData.carEra = eraType;
+      // Create orbital bodies at different radii
+      const trainCars = []; // Keep variable name for compatibility
+      const orbitalBodies = [
+        { name: 'Print Era', size: 0.8, color: 0x8B4513, radius: 10 },
+        { name: 'Radio Era', size: 0.9, color: 0x4169E1, radius: 14 },
+        { name: 'Television Era', size: 1.0, color: 0x9370DB, radius: 18 },
+        { name: 'Internet Era', size: 1.1, color: 0x00CED1, radius: 22 },
+        { name: 'AI Era', size: 1.2, color: 0xff4d2e, radius: 26 }
+      ];
+      
+      orbitalBodies.forEach((config, idx) => {
+        const bodyGroup = createOrbitalBody(config.size, config.color, config.name);
+        bodyGroup.userData.isOrbital = true; // Mark for raycaster
+        bodyGroup.userData.bodyIndex = idx;
+        bodyGroup.userData.bodyName = config.name;
+        bodyGroup.userData.orbitRadius = config.radius;
         
-        // Body
-        const body = createTrainBodyMesh(isLocomotive, eraType);
-        body.position.y = isLocomotive ? 0.9 : 0.7;  // Lower to match smaller size
-        carGroup.add(body);
+        // Initial position on orbit
+        const angle = (idx / orbitalBodies.length) * Math.PI * 2;
+        const x = Math.cos(angle) * config.radius;
+        const z = Math.sin(angle) * config.radius;
+        bodyGroup.position.set(x, 0.5, z);
         
-        // 4 Wheels - closer together for smaller cars
-        const wheelPositions = [
-          { x: 0.8, z: -0.6 },
-          { x: 0.8, z: 0.6 },
-          { x: -0.8, z: -0.6 },
-          { x: -0.8, z: 0.6 }
-        ];
-        
-        const wheels = [];
-        wheelPositions.forEach(pos => {
-          const wheel = createWheel();
-          wheel.rotation.z = Math.PI / 2;
-          wheel.position.set(pos.x, 0.3, pos.z);  // Lower wheels
-          carGroup.add(wheel);
-          wheels.push(wheel);
+        scene.add(bodyGroup);
+        trainCars.push({ 
+          group: bodyGroup,
+          index: idx,
+          orbitRadius: config.radius,
+          orbitSpeed: 0.001 + (idx * 0.0002) // Different speeds
         });
-        
-        scene.add(carGroup);
-        trainCars.push({ group: carGroup, wheels, index: idx });
       });
       
       // Store references
@@ -4762,11 +5073,24 @@ Each train car represents a media era. When user chats with cars, respond as tha
             currentLabel = label;
             canvas.style.cursor = 'pointer';
           }
-          // Show train info label
-          else if (hoveredObject.parent && hoveredObject.parent.userData.isTrain) {
+          // Show orbital body info label
+          else if (hoveredObject.parent && hoveredObject.parent.userData.isOrbital) {
+            const bodyName = hoveredObject.parent.userData.bodyName || 'Orbital Body';
             const label = document.createElement('div');
             label.className = 'entity-label';
-            label.textContent = `🚂 Train: ${Math.round(channel.trainProgress * 100)}% complete`;
+            label.textContent = `🪐 ${bodyName}`;
+            label.style.left = `${event.clientX + 10}px`;
+            label.style.top = `${event.clientY - 30}px`;
+            document.body.appendChild(label);
+            currentLabel = label;
+            canvas.style.cursor = 'pointer';
+          }
+          // Show moon info label
+          else if (hoveredObject.userData.isMoon) {
+            const moonName = hoveredObject.userData.moonName || 'Moon';
+            const label = document.createElement('div');
+            label.className = 'entity-label';
+            label.textContent = `${moonName}`;
             label.style.left = `${event.clientX + 10}px`;
             label.style.top = `${event.clientY - 30}px`;
             document.body.appendChild(label);
@@ -4809,29 +5133,26 @@ Each train car represents a media era. When user chats with cars, respond as tha
               }, 300);
             }
           }
-          // Train click detection - chat with train cars!
-          else if (clickedObject.parent && clickedObject.parent.userData.isTrain) {
-            const carIndex = clickedObject.parent.userData.carIndex || 0;
-            const carEra = clickedObject.parent.userData.carEra;
+          // Orbital body click detection - chat with orbiting elements!
+          else if (clickedObject.parent && clickedObject.parent.userData.isOrbital) {
+            const bodyIndex = clickedObject.parent.userData.bodyIndex || 0;
+            const bodyName = clickedObject.parent.userData.bodyName;
+            const orbitRadius = clickedObject.parent.userData.orbitRadius;
             
-            let carInfo = '';
-            if (carIndex === 0) {
-              carInfo = `🚂 Locomotive (Leader)\n\nI'm the engine that pulls this train through time. Ask me about the journey ahead.`;
-            } else {
-              const eraNames = { Print: '📰 Print Car', Radio: '📻 Radio Car', Television: '📺 TV Car', Internet: '🌐 Internet Car' };
-              const eraDesc = {
-                Print: 'I represent the age of literacy and linear thought. Books, newspapers, structured knowledge.',
-                Radio: 'I embody the communal voice. Broadcasting, immediate connection, the tribal drum.',
-                Television: 'I am the visual spectacle. Mass culture, passive consumption, the global village.',
-                Internet: 'I am the network. Fragmented, participatory, everyone speaks, chaos and connection.'
-              };
-              carInfo = `${eraNames[carEra] || 'Mystery Car'}\n\n${eraDesc[carEra] || 'A car in the train of time.'}\n\nType @${carEra} to chat with me!`;
-            }
+            const bodyDescriptions = {
+              'Print Era': '📰 I orbit at the innermost ring. Literacy, linear thought, structured knowledge. Books gave humanity memory beyond the oral tradition.',
+              'Radio Era': '📻 I orbit in the second ring. The communal voice, broadcasting, immediate connection. I brought the world together through sound waves.',
+              'Television Era': '📺 I orbit in the third ring. Visual spectacle, mass culture, passive consumption. I created the global village through moving images.',
+              'Internet Era': '🌐 I orbit in the fourth ring. The network, fragmented and participatory. Everyone speaks, chaos and connection intertwine.',
+              'AI Era': '🤖 I orbit at the outer edge. Synthetic intelligence, pattern recognition, probabilistic truth. I am the new medium that shapes all others.'
+            };
             
-            addMessage(channel, 'system', `${carInfo}\n\nProgress: ${Math.round(channel.trainProgress * 100)}% | Track: ${TRACK_CONFIGS[channel.currentTrack].label}`);
+            const bodyInfo = `${bodyName}\n\nOrbit radius: ${orbitRadius}m\n\n${bodyDescriptions[bodyName] || 'An orbital element in the media system.'}\n\nType @${bodyName.replace(' Era', '')} to chat with me!`;
+            
+            addMessage(channel, 'system', `🪐 ${bodyInfo}\n\nCurrent ring: ${TRACK_CONFIGS[channel.currentTrack].label}`);
             renderMessages(channel);
             channel.dom.input.focus();
-            TestSuite.log('🚂', 'CLICK', `${carEra || 'Locomotive'} car clicked`);
+            TestSuite.log('🪐', 'CLICK', `${bodyName} clicked`);
           }
         }
       });
@@ -4845,8 +5166,110 @@ Each train car represents a media era. When user chats with cars, respond as tha
       appState.channels.forEach(channel => {
         if (!channel.scene || !channel.renderer) return;
         
-        // Update train position (only if not paused)
-        if (!channel.trainPaused) {
+        // PHYSICS MODE: Calculate N-body gravitation
+        if (channel.physicsEnabled && channel.freeEntities) {
+          const G = 0.001; // Gravitational constant (tuned for visual effect)
+          const dt = 0.016; // Time step (~60fps)
+          
+          // Update free entities with gravity
+          channel.freeEntities.forEach((entity, idx) => {
+            let forceX = 0;
+            let forceZ = 0;
+            
+            // Calculate gravitational pull from all orbital bodies
+            channel.trainCars.forEach(body => {
+              const dx = body.group.position.x - entity.position.x;
+              const dz = body.group.position.z - entity.position.z;
+              const distSq = dx * dx + dz * dz;
+              const dist = Math.sqrt(distSq);
+              
+              if (dist > 0.5) { // Prevent division by zero and super-close encounters
+                const force = (G * body.mass * entity.mass) / distSq;
+                forceX += (dx / dist) * force;
+                forceZ += (dz / dist) * force;
+                
+                // Collision detection
+                if (dist < (body.group.children[0].geometry.parameters.radius + entity.size + 0.5)) {
+                  entity.crashed = true;
+                  entity.crashedInto = body.group.userData.bodyName;
+                }
+              }
+            });
+            
+            // Update velocity and position
+            entity.velocity.x += (forceX / entity.mass) * dt;
+            entity.velocity.z += (forceZ / entity.mass) * dt;
+            
+            entity.position.x += entity.velocity.x;
+            entity.position.z += entity.velocity.z;
+            
+            // Update mesh
+            if (entity.mesh) {
+              entity.mesh.position.set(entity.position.x, entity.position.y, entity.position.z);
+              
+              // Trail visualization - create line geometry
+              entity.trail.push({ x: entity.position.x, z: entity.position.z });
+              if (entity.trail.length > 100) entity.trail.shift();
+              
+              // Update or create trail line
+              if (entity.trail.length > 2) {
+                if (!entity.trailLine) {
+                  const trailGeom = new THREE.BufferGeometry();
+                  const trailMat = new THREE.LineBasicMaterial({
+                    color: entity.color,
+                    opacity: 0.4,
+                    transparent: true
+                  });
+                  entity.trailLine = new THREE.Line(trailGeom, trailMat);
+                  channel.scene.add(entity.trailLine);
+                }
+                
+                // Update trail geometry
+                const positions = new Float32Array(entity.trail.length * 3);
+                entity.trail.forEach((point, i) => {
+                  positions[i * 3] = point.x;
+                  positions[i * 3 + 1] = 0.5;
+                  positions[i * 3 + 2] = point.z;
+                });
+                entity.trailLine.geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+                entity.trailLine.geometry.computeBoundingSphere();
+              }
+              
+              // Change color if crashed
+              if (entity.crashed) {
+                entity.mesh.material.color.setHex(0xff0000);
+                entity.mesh.material.emissive.setHex(0xff0000);
+                if (entity.trailLine) {
+                  entity.trailLine.material.color.setHex(0xff0000);
+                }
+              }
+            }
+          });
+          
+          // Check for stable orbits and notify (more frequently)
+          if (Math.random() < 0.05) { // Check more often
+            channel.freeEntities.forEach(entity => {
+              if (entity.crashed && !entity.notified) {
+                entity.notified = true;
+                addMessage(channel, 'system', `💥 **${entity.name}** crashed into ${entity.crashedInto}!\n\n🔴 Entity destroyed. Trail turns red.`);
+                renderMessages(channel);
+                TestSuite.log('💥', 'CRASH', `${entity.name} → ${entity.crashedInto}`);
+              } else if (!entity.crashed && entity.trail.length > 50 && !entity.notified) {
+                const speed = Math.sqrt(entity.velocity.x ** 2 + entity.velocity.z ** 2);
+                const dist = Math.sqrt(entity.position.x ** 2 + entity.position.z ** 2);
+                if (speed > 0.02 && speed < 0.2) {
+                  entity.notified = true;
+                  addMessage(channel, 'system', `✨ **${entity.name}** achieved stable orbit!\n\n📊 Speed: ${(speed * 100).toFixed(1)}%\n📏 Distance: ${dist.toFixed(1)} units\n🔵 Trail shows circular path`);
+                  renderMessages(channel);
+                  TestSuite.log('✨', 'ORBIT', `${entity.name} stable at r=${dist.toFixed(1)}`);
+                }
+              }
+            });
+          }
+        }
+        
+        // Update train position (only if not paused and physics off)
+        if (!channel.trainPaused && !channel.physicsEnabled) {
           const direction = channel.trainDirection || 1;
           channel.trainProgress += 0.001 * direction; // Use direction for forward/backward
           
@@ -4860,8 +5283,19 @@ Each train car represents a media era. When user chats with cars, respond as tha
         const x = Math.cos(angle) * mainRadius;
         const z = Math.sin(angle) * mainRadius;
         
-        // Camera follow mode
-        if (channel.cameraFollowMode && channel.trainCars && channel.trainCars.length > 0) {
+        // Perspective lock mode - follow specific orbital body
+        if (channel.perspectiveLock !== null && channel.perspectiveLock !== undefined) {
+          const lockedBody = channel.trainCars[channel.perspectiveLock];
+          if (lockedBody && lockedBody.group) {
+            const bodyPos = lockedBody.group.position;
+            // Position camera behind and above the locked body
+            const offset = new THREE.Vector3(0, 6, 10);
+            channel.camera.position.copy(bodyPos).add(offset);
+            channel.camera.lookAt(bodyPos.x, bodyPos.y, bodyPos.z);
+          }
+        }
+        // Legacy camera follow mode
+        else if (channel.cameraFollowMode && channel.trainCars && channel.trainCars.length > 0) {
           const locomotive = channel.trainCars[0];
           const trainPos = locomotive.group.position;
           const offset = new THREE.Vector3(0, 8, 12);
@@ -4869,35 +5303,58 @@ Each train car represents a media era. When user chats with cars, respond as tha
           channel.camera.lookAt(trainPos.x, trainPos.y, trainPos.z);
         }
         
-        // Position each car with better spacing
-        channel.trainCars.forEach((car, idx) => {
-          if (!car || !car.group) return; // Safety check
+        // Orbit each body at its own radius and speed
+        channel.trainCars.forEach((body, idx) => {
+          if (!body || !body.group) return; // Safety check
           
-          const offset = idx * 0.05; // Tighter spacing for smaller cars
-          const u = (channel.trainProgress - offset + 1) % 1;
-          const point = channel.trainCurve.getPoint(u);
+          const radius = body.orbitRadius || 15;
+          const speed = body.orbitSpeed || 0.001;
           
-          car.group.position.set(point.x, car.group.position.y, point.y);
+          // Calculate orbital position
+          const angle = (channel.trainProgress + (idx * 0.2)) * Math.PI * 2;
+          const x = Math.cos(angle) * radius;
+          const z = Math.sin(angle) * radius;
           
-          // Look ahead for rotation
-          const lookU = (u + 0.01) % 1;
-          const lookPoint = channel.trainCurve.getPoint(lookU);
-          car.group.lookAt(lookPoint.x, car.group.position.y, lookPoint.y);
-          car.group.rotateY(Math.PI / 2);
+          body.group.position.set(x, 0.5, z);
           
-          // Rotate wheels if they exist
-          if (car.wheels) car.wheels.forEach(wheel => {
-            wheel.rotation.z += 0.05;
-          });
+          // Rotate body on its axis (self-rotation)
+          body.group.rotation.y += speed * 5;
+          
+          // Animate glow ring tilt
+          const glowRing = body.group.children[1];
+          if (glowRing) {
+            glowRing.rotation.x = Math.sin(Date.now() * 0.001) * 0.3;
+          }
+          
+          // ANIMATE MOONS around this orbital body
+          if (body.moons && body.moons.length > 0) {
+            body.moons.forEach(moon => {
+              if (!moon.mesh) return;
+              
+              // Update moon's orbital angle
+              moon.angle += moon.speed;
+              
+              // Calculate moon position relative to host body
+              const moonX = x + Math.cos(moon.angle) * moon.radius;
+              const moonY = 0.5 + Math.sin(moon.angle * 2) * 0.5; // Slight vertical wobble
+              const moonZ = z + Math.sin(moon.angle) * moon.radius;
+              
+              moon.mesh.position.set(moonX, moonY, moonZ);
+              moon.mesh.rotation.y += 0.05; // Self-rotation
+            });
+          }
         });
         
         // Update info overlay
-        if (channel.dom.trainInfo) {
-          const pct = Math.floor(channel.trainProgress * 100);
-          const status = channel.trainPaused ? '🚦 PAUSED' : '▶️ MOVING';
-          channel.dom.trainInfo.innerHTML = 
-            `Track: <strong>${TRACK_CONFIGS[channel.currentTrack].label}</strong><br>Position: <strong>${pct}%</strong><br>${status}`;
+        const pct = Math.floor(channel.trainProgress * 100);
+        let status = channel.trainPaused ? '🛑 PAUSED' : '🌌 ORBITING';
+        if (channel.physicsEnabled) {
+          const entityCount = channel.freeEntities ? channel.freeEntities.length : 0;
+          const crashed = channel.freeEntities ? channel.freeEntities.filter(e => e.crashed).length : 0;
+          status = `⚛️ PHYSICS ON (${entityCount} entities, ${crashed} crashed)`;
         }
+        channel.dom.trainInfo.innerHTML = 
+          `Ring: <strong>${TRACK_CONFIGS[channel.currentTrack].label}</strong><br>Cycle: <strong>${pct}%</strong><br>${status}`;
         
         // Update grid position
         updateGridPosition(channel, channel.trainProgress);
