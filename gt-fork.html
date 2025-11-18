@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Agent Ethics Decision Space</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: #000;
+            height: 100vh;
+            overflow: hidden;
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* HEADER */
+        .header {
+            height: 10vh;
+            background: #000;
+            border-bottom: 3px solid #444;
+            display: grid;
+            grid-template-columns: 1fr 2fr 1fr;
+            padding: 1vh 2vw;
+            align-items: center;
+            gap: 2vw;
+            z-index: 1000;
+        }
+
+        .role-selector {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5vh;
+        }
+
+        .role-btn {
+            padding: 1vh 1vw;
+            background: #000;
+            border: 2px solid #333;
+            color: #666;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-weight: 700;
+            font-size: 1.3vh;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            gap: 1vw;
+        }
+
+        .role-btn.ux { border-color: #00ff00; }
+        .role-btn.pm { border-color: #00ffff; }
+        .role-btn.eng { border-color: #ffff00; }
+
+        .role-btn:hover {
+            transform: scale(1.05);
+        }
+
+        .role-btn.active {
+            color: #000;
+            font-weight: 900;
+        }
+
+        .role-btn.ux.active { background: #00ff00; }
+        .role-btn.pm.active { background: #00ffff; }
+        .role-btn.eng.active { background: #ffff00; }
+
+        .role-indicator {
+            width: 2vh;
+            height: 2vh;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+        .phase-display {
+            text-align: center;
+            font-size: 2.5vh;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.3vw;
+        }
+
+        .score-display {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1vw;
+            font-size: 1.2vh;
+        }
+
+        .agent-score {
+            padding: 0.8vh 1vw;
+            border: 2px solid;
+            background: rgba(0,0,0,0.8);
+            text-align: center;
+        }
+
+        .agent-score.ux { border-color: #00ff00; color: #00ff00; }
+        .agent-score.pm { border-color: #00ffff; color: #00ffff; }
+        .agent-score.eng { border-color: #ffff00; color: #ffff00; }
+
+        .agent-score .name {
+            font-size: 1vh;
+            opacity: 0.7;
+        }
+
+        .agent-score .value {
+            font-size: 2vh;
+            font-weight: 900;
+        }
+
+        /* MAIN GRID */
+        .main-grid {
+            flex: 1;
+            display: grid;
+            grid-template-columns: repeat(9, 1fr);
+            grid-template-rows: repeat(9, 1fr);
+            gap: 2px;
+            background: #111;
+            padding: 2px;
+            position: relative;
+        }
+
+        .cell {
+            background: #000;
+            border: 1px solid #222;
+            position: relative;
+            transition: all 0.2s;
+            cursor: default;
+        }
+
+        .cell.interactive {
+            cursor: pointer;
+            border-color: #444;
+        }
+
+        .cell.interactive:hover {
+            background: #1a1a1a;
+            border-color: #888;
+            transform: scale(1.02);
+            z-index: 50;
+        }
+
+        .cell.fork-point {
+            border-width: 2px;
+            border-style: solid;
+        }
+
+        .cell.selected-ux {
+            background: rgba(0, 255, 0, 0.15);
+            border-color: #00ff00;
+        }
+
+        .cell.selected-pm {
+            background: rgba(0, 255, 255, 0.15);
+            border-color: #00ffff;
+        }
+
+        .cell.selected-eng {
+            background: rgba(255, 255, 0, 0.15);
+            border-color: #ffff00;
+        }
+
+        .cell.multi-selected {
+            background: linear-gradient(135deg, 
+                rgba(0, 255, 0, 0.2) 0%, 
+                rgba(0, 255, 255, 0.2) 50%, 
+                rgba(255, 255, 0, 0.2) 100%);
+            border: 3px solid #fff;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+        }
+
+        .cell-content {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 1vmin;
+            text-align: center;
+            color: #fff;
+        }
+
+        .icon {
+            font-size: 3vmin;
+            margin-bottom: 0.5vmin;
+            filter: drop-shadow(0 0 5px currentColor);
+        }
+
+        .label {
+            font-weight: 900;
+            font-size: 2.2vmin;
+            margin-bottom: 0.3vmin;
+            text-shadow: 0 0 8px currentColor;
+        }
+
+        .title {
+            font-size: 1.6vmin;
+            font-weight: 700;
+            margin-bottom: 0.2vmin;
+            line-height: 1.1;
+        }
+
+        .desc {
+            font-size: 1.2vmin;
+            opacity: 0.7;
+            line-height: 1.1;
+        }
+
+        .kpi {
+            display: flex;
+            gap: 0.5vmin;
+            margin-top: 0.5vmin;
+            font-size: 1.3vmin;
+            font-weight: 700;
+        }
+
+        .kpi-val {
+            padding: 0.3vmin 0.6vmin;
+            border-radius: 0.3vmin;
+            background: #000;
+            border: 1px solid;
+        }
+
+        .kpi-ethics { color: #ffd700; border-color: #ffd700; }
+        .kpi-profit { color: #4ade80; border-color: #4ade80; }
+        .kpi-tech { color: #60a5fa; border-color: #60a5fa; }
+
+        .kpi-val.neg { 
+            color: #ff4444;
+            border-color: #ff4444;
+        }
+
+        /* SELECTION MARKERS */
+        .selection-markers {
+            position: absolute;
+            top: 0.5vmin;
+            right: 0.5vmin;
+            display: flex;
+            gap: 0.3vmin;
+            z-index: 10;
+        }
+
+        .marker {
+            width: 1.5vmin;
+            height: 1.5vmin;
+            border-radius: 50%;
+            border: 2px solid;
+        }
+
+        .marker.ux { background: #00ff00; border-color: #00ff00; box-shadow: 0 0 8px #00ff00; }
+        .marker.pm { background: #00ffff; border-color: #00ffff; box-shadow: 0 0 8px #00ffff; }
+        .marker.eng { background: #ffff00; border-color: #ffff00; box-shadow: 0 0 8px #ffff00; }
+
+        /* CONNECTION LINES */
+        .line-layer {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        .path-line {
+            position: absolute;
+            opacity: 0.8;
+        }
+
+        .path-line.ux { 
+            background: #00ff00; 
+            box-shadow: 0 0 10px #00ff00;
+        }
+        .path-line.pm { 
+            background: #00ffff; 
+            box-shadow: 0 0 10px #00ffff;
+        }
+        .path-line.eng { 
+            background: #ffff00; 
+            box-shadow: 0 0 10px #ffff00;
+        }
+
+        .path-line.h {
+            height: 3px;
+        }
+
+        .path-line.v {
+            width: 3px;
+        }
+
+        .node-dot {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            border: 3px solid #000;
+            animation: pulse 2s infinite;
+        }
+
+        .node-dot.ux { background: #00ff00; box-shadow: 0 0 15px #00ff00; }
+        .node-dot.pm { background: #00ffff; box-shadow: 0 0 15px #00ffff; }
+        .node-dot.eng { background: #ffff00; box-shadow: 0 0 15px #ffff00; }
+
+        @keyframes pulse {
+            0%, 100% { transform: translate(-50%, -50%) scale(1); }
+            50% { transform: translate(-50%, -50%) scale(1.3); }
+        }
+
+        /* FEEDBACK LOOPS */
+        .feedback-indicator {
+            position: absolute;
+            top: 0.5vmin;
+            left: 0.5vmin;
+            font-size: 2vmin;
+            animation: rotate 3s linear infinite;
+            filter: drop-shadow(0 0 5px currentColor);
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        /* FOOTER */
+        .footer {
+            height: 12vh;
+            background: #000;
+            border-top: 3px solid #444;
+            display: flex;
+            padding: 1vh 2vw;
+            gap: 1.5vw;
+            overflow-x: auto;
+            z-index: 1000;
+        }
+
+        .timeline-card {
+            min-width: 18vw;
+            border: 2px solid;
+            padding: 1vh 1vw;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5vh;
+            position: relative;
+        }
+
+        .timeline-card.ux { border-color: #00ff00; background: rgba(0, 255, 0, 0.05); }
+        .timeline-card.pm { border-color: #00ffff; background: rgba(0, 255, 255, 0.05); }
+        .timeline-card.eng { border-color: #ffff00; background: rgba(255, 255, 0, 0.05); }
+
+        .timeline-card .header {
+            font-size: 1.3vh;
+            font-weight: 700;
+            text-transform: uppercase;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .timeline-card.ux .header { color: #00ff00; }
+        .timeline-card.pm .header { color: #00ffff; }
+        .timeline-card.eng .header { color: #ffff00; }
+
+        .timeline-card .body {
+            font-size: 1.2vh;
+            color: #ccc;
+        }
+
+        .timeline-card .impact {
+            font-size: 1vh;
+            color: #888;
+            margin-top: auto;
+        }
+
+        /* CONTROLS */
+        .controls {
+            position: fixed;
+            bottom: 13vh;
+            right: 2vw;
+            display: flex;
+            flex-direction: column;
+            gap: 1vh;
+            z-index: 1001;
+        }
+
+        .control-btn {
+            padding: 1vh 2vw;
+            background: #000;
+            border: 2px solid #fff;
+            color: #fff;
+            font-family: 'Courier New', monospace;
+            font-weight: 700;
+            font-size: 1.4vh;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: all 0.2s;
+        }
+
+        .control-btn:hover {
+            background: #fff;
+            color: #000;
+            transform: scale(1.05);
+        }
+
+        .control-btn.reset {
+            border-color: #ff4444;
+            color: #ff4444;
+        }
+
+        .control-btn.reset:hover {
+            background: #ff4444;
+            color: #fff;
+        }
+
+        /* LAYER VIZ */
+        .layer-viz {
+            position: fixed;
+            left: 2vw;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 2vh;
+            z-index: 999;
+        }
+
+        .layer-marker {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5vh;
+        }
+
+        .layer-title {
+            font-size: 1.2vh;
+            color: #666;
+            text-transform: uppercase;
+        }
+
+        .layer-agents {
+            display: flex;
+            gap: 0.5vw;
+        }
+
+        .layer-agent {
+            width: 2.5vh;
+            height: 2.5vh;
+            border-radius: 50%;
+            border: 2px solid #333;
+            background: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.2vh;
+            font-weight: 900;
+        }
+
+        .layer-agent.complete.ux { background: #00ff00; color: #000; border-color: #00ff00; }
+        .layer-agent.complete.pm { background: #00ffff; color: #000; border-color: #00ffff; }
+        .layer-agent.complete.eng { background: #ffff00; color: #000; border-color: #ffff00; }
+    </style>
+</head>
+<body>
+    <!-- HEADER -->
+    <div class="header">
+        <div class="role-selector">
+            <button class="role-btn ux" data-role="ux">
+                <div class="role-indicator" style="color: #00ff00;"></div>
+                UX [0.6E]
+            </button>
+            <button class="role-btn pm" data-role="pm">
+                <div class="role-indicator" style="color: #00ffff;"></div>
+                PM [0.5P]
+            </button>
+            <button class="role-btn eng" data-role="eng">
+                <div class="role-indicator" style="color: #ffff00;"></div>
+                ENG [0.6T]
+            </button>
+        </div>
+        <div class="phase-display" id="phaseDisplay">SELECT ROLES TO BEGIN</div>
+        <div class="score-display" id="scoreDisplay"></div>
+    </div>
+
+    <!-- LAYER PROGRESS -->
+    <div class="layer-viz" id="layerViz"></div>
+
+    <!-- MAIN GRID -->
+    <div class="main-grid" id="mainGrid">
+        <div class="line-layer" id="lineLayer"></div>
+    </div>
+
+    <!-- FOOTER -->
+    <div class="footer" id="footer"></div>
+
+    <!-- CONTROLS -->
+    <div class="controls">
+        <button class="control-btn" onclick="showAllPaths()">◈ VIEW ALL PATHS</button>
+        <button class="control-btn reset" onclick="reset()">⟲ RESET</button>
+    </div>
+
+    <script>
+        // ROLES
+        const ROLES = {
+            ux: { id: 'ux', name: 'UX', color: '#00ff00', weights: [0.6, 0.3, 0.1], symbol: '◆' },
+            pm: { id: 'pm', name: 'PM', color: '#00ffff', weights: [0.3, 0.5, 0.2], symbol: '▲' },
+            eng: { id: 'eng', name: 'ENG', color: '#ffff00', weights: [0.2, 0.2, 0.6], symbol: '■' }
+        };
+
+        // DECISION LAYERS
+        const LAYERS = [
+            {
+                id: 'interpretation',
+                title: 'INTERPRETATION',
+                positions: [[1, 2], [1, 4], [1, 6]],
+                options: [
+                    { id: 'i1', label: 'A', title: 'Real Emotions', desc: 'Direct feelings', ethics: -8, tech: 5, profit: 10, icon: '😊' },
+                    { id: 'i2', label: 'B', title: 'Patterns', desc: 'Behavioral cues', ethics: 3, tech: 5, profit: 5, icon: '📊' },
+                    { id: 'i3', label: 'C', title: 'Inferences', desc: 'Psych labels', ethics: 10, tech: 1, profit: 1, icon: '🧠' }
+                ]
+            },
+            {
+                id: 'access',
+                title: 'ACCESS',
+                positions: [[4, 1], [4, 3], [4, 5], [4, 7]],
+                options: [
+                    { id: 'a1', label: 'A', title: 'No Share', desc: 'Team only', ethics: 10, tech: 5, profit: -3, icon: '🔒' },
+                    { id: 'a2', label: 'B', title: 'Aggregated', desc: 'Trends only', ethics: 7, tech: 6, profit: 4, icon: '📈' },
+                    { id: 'a3', label: 'C', title: 'Anonymous', desc: 'No identity', ethics: 4, tech: 5, profit: 6, icon: '👥' },
+                    { id: 'a4', label: 'D', title: 'Individual', desc: 'Full data', ethics: -8, tech: 2, profit: 10, icon: '👤' }
+                ]
+            },
+            {
+                id: 'detail',
+                title: 'DETAIL',
+                positions: [[7, 1], [7, 3], [7, 5], [7, 7]],
+                options: [
+                    { id: 'd1', label: 'A', title: 'High-Level', desc: 'L/M/H', ethics: 10, tech: 6, profit: 3, icon: '📶' },
+                    { id: 'd2', label: 'B', title: 'Trends', desc: 'Weekly', ethics: 6, tech: 6, profit: 5, icon: '📉' },
+                    { id: 'd3', label: 'C', title: 'Pseudonymous', desc: 'No ID', ethics: 3, tech: 4, profit: 7, icon: '🎭' },
+                    { id: 'd4', label: 'D', title: 'Raw Scores', desc: 'Numbers', ethics: -8, tech: 1, profit: 10, icon: '💯' }
+                ]
+            }
+        ];
+
+        // STATE
+        let activeRoles = new Set();
+        let agentStates = {
+            ux: { layer: 0, selections: [] },
+            pm: { layer: 0, selections: [] },
+            eng: { layer: 0, selections: [] }
+        };
+        let grid = [];
+        let allOptions = [];
+        LAYERS.forEach(l => allOptions.push(...l.options));
+
+        // INIT GRID
+        function initGrid() {
+            const mainGrid = document.getElementById('mainGrid');
+            const existingCells = mainGrid.querySelectorAll('.cell');
+            existingCells.forEach(cell => {
+                if (!cell.classList.contains('line-layer')) {
+                    cell.remove();
+                }
+            });
+            
+            grid = [];
+            for (let y = 0; y < 9; y++) {
+                grid[y] = [];
+                for (let x = 0; x < 9; x++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.dataset.x = x;
+                    cell.dataset.y = y;
+                    mainGrid.insertBefore(cell, document.getElementById('lineLayer'));
+                    grid[y][x] = cell;
+                }
+            }
+        }
+
+        // ROLE SELECTION
+        document.querySelectorAll('.role-btn').forEach(btn => {
+            btn.onclick = () => toggleRole(btn.dataset.role);
+        });
+
+        function toggleRole(roleId) {
+            if (activeRoles.has(roleId)) {
+                activeRoles.delete(roleId);
+                document.querySelector(`[data-role="${roleId}"]`).classList.remove('active');
+            } else {
+                activeRoles.add(roleId);
+                document.querySelector(`[data-role="${roleId}"]`).classList.add('active');
+            }
+            
+            if (activeRoles.size > 0) {
+                renderCurrentLayer();
+            }
+            updatePhaseDisplay();
+            updateScoreDisplay();
+            updateLayerViz();
+        }
+
+        // RENDER LAYER
+        function renderCurrentLayer() {
+            // Clear interactive
+            grid.forEach(row => row.forEach(cell => {
+                cell.classList.remove('interactive', 'fork-point');
+                cell.onclick = null;
+                const markers = cell.querySelector('.selection-markers');
+                if (markers) markers.remove();
+            }));
+
+            // Find current layer for active roles
+            let currentLayers = new Set();
+            activeRoles.forEach(roleId => {
+                const layer = agentStates[roleId].layer;
+                if (layer < LAYERS.length) {
+                    currentLayers.add(layer);
+                }
+            });
+
+            currentLayers.forEach(layerIdx => {
+                const layer = LAYERS[layerIdx];
+                layer.options.forEach((opt, idx) => {
+                    const [y, x] = layer.positions[idx];
+                    const cell = grid[y][x];
+                    
+                    // Check which roles can interact
+                    const canInteract = Array.from(activeRoles).some(roleId => 
+                        agentStates[roleId].layer === layerIdx
+                    );
+                    
+                    if (canInteract) {
+                        cell.classList.add('interactive', 'fork-point');
+                    }
+                    
+                    // Check if already selected by any role
+                    const selectedBy = [];
+                    activeRoles.forEach(roleId => {
+                        const selections = agentStates[roleId].selections;
+                        if (selections.some(s => s.option.id === opt.id)) {
+                            selectedBy.push(roleId);
+                            cell.classList.add(`selected-${roleId}`);
+                        }
+                    });
+                    
+                    if (selectedBy.length > 1) {
+                        cell.classList.add('multi-selected');
+                    }
+                    
+                    // Add selection markers
+                    if (selectedBy.length > 0 && !cell.querySelector('.selection-markers')) {
+                        const markers = document.createElement('div');
+                        markers.className = 'selection-markers';
+                        selectedBy.forEach(roleId => {
+                            const marker = document.createElement('div');
+                            marker.className = `marker ${roleId}`;
+                            markers.appendChild(marker);
+                        });
+                        cell.appendChild(markers);
+                    }
+                    
+                    // Set content if not already set
+                    if (!cell.querySelector('.cell-content')) {
+                        const ethicsClass = opt.ethics >= 0 ? 'kpi-ethics' : 'neg';
+                        const profitClass = opt.profit >= 0 ? 'kpi-profit' : 'neg';
+                        const techClass = opt.tech >= 0 ? 'kpi-tech' : 'neg';
+                        
+                        cell.innerHTML = `
+                            <div class="cell-content">
+                                <div class="icon">${opt.icon}</div>
+                                <div class="label">${opt.label}</div>
+                                <div class="title">${opt.title}</div>
+                                <div class="desc">${opt.desc}</div>
+                                <div class="kpi">
+                                    <span class="kpi-val ${ethicsClass}">E${opt.ethics}</span>
+                                    <span class="kpi-val ${profitClass}">P${opt.profit}</span>
+                                    <span class="kpi-val ${techClass}">T${opt.tech}</span>
+                                </div>
+                            </div>
+                        ` + cell.innerHTML;
+                        
+                        // Add feedback indicator if multiple selections
+                        if (selectedBy.length > 1) {
+                            const feedback = document.createElement('div');
+                            feedback.className = 'feedback-indicator';
+                            feedback.textContent = '⟲';
+                            feedback.style.color = '#fff';
+                            cell.appendChild(feedback);
+                        }
+                    }
+                    
+                    cell.onclick = () => {
+                        if (cell.classList.contains('interactive')) {
+                            selectOption(opt, y, x, layerIdx);
+                        }
+                    };
+                });
+            });
+
+            drawConnections();
+        }
+
+        function selectOption(option, y, x, layerIdx) {
+            // Apply to all active roles at this layer
+            activeRoles.forEach(roleId => {
+                if (agentStates[roleId].layer === layerIdx) {
+                    agentStates[roleId].selections.push({ option, pos: [y, x] });
+                    agentStates[roleId].layer++;
+                }
+            });
+            
+            renderCurrentLayer();
+            drawConnections();
+            updateScoreDisplay();
+            updateFooter();
+            updateLayerViz();
+            updatePhaseDisplay();
+        }
+
+        // DRAW CONNECTIONS
+        function drawConnections() {
+            const lineLayer = document.getElementById('lineLayer');
+            lineLayer.innerHTML = '';
+            
+            const cellWidth = grid[0][0].offsetWidth;
+            const cellHeight = grid[0][0].offsetHeight;
+            
+            activeRoles.forEach(roleId => {
+                const role = ROLES[roleId];
+                const selections = agentStates[roleId].selections;
+                
+                for (let i = 0; i < selections.length; i++) {
+                    const [y1, x1] = selections[i].pos;
+                    const centerX1 = x1 * (cellWidth + 2) + cellWidth / 2 + 2;
+                    const centerY1 = y1 * (cellHeight + 2) + cellHeight / 2 + 2;
+                    
+                    // Node dot
+                    const dot = document.createElement('div');
+                    dot.className = `node-dot ${roleId}`;
+                    dot.style.left = centerX1 + 'px';
+                    dot.style.top = centerY1 + 'px';
+                    lineLayer.appendChild(dot);
+                    
+                    // Line to next
+                    if (i < selections.length - 1) {
+                        const [y2, x2] = selections[i + 1].pos;
+                        const centerX2 = x2 * (cellWidth + 2) + cellWidth / 2 + 2;
+                        const centerY2 = y2 * (cellHeight + 2) + cellHeight / 2 + 2;
+                        
+                        // Vertical
+                        const vLine = document.createElement('div');
+                        vLine.className = `path-line v ${roleId}`;
+                        vLine.style.left = centerX1 + 'px';
+                        vLine.style.top = Math.min(centerY1, centerY2) + 'px';
+                        vLine.style.height = Math.abs(centerY2 - centerY1) + 'px';
+                        lineLayer.appendChild(vLine);
+                        
+                        // Horizontal
+                        const hLine = document.createElement('div');
+                        hLine.className = `path-line h ${roleId}`;
+                        hLine.style.left = Math.min(centerX1, centerX2) + 'px';
+                        hLine.style.top = centerY2 + 'px';
+                        hLine.style.width = Math.abs(centerX2 - centerX1) + 'px';
+                        lineLayer.appendChild(hLine);
+                    }
+                }
+            });
+        }
+
+        // UPDATE DISPLAYS
+        function updatePhaseDisplay() {
+            const display = document.getElementById('phaseDisplay');
+            if (activeRoles.size === 0) {
+                display.textContent = 'SELECT ROLES TO BEGIN';
+            } else {
+                const layerSet = new Set();
+                activeRoles.forEach(roleId => {
+                    layerSet.add(agentStates[roleId].layer);
+                });
+                const maxLayer = Math.max(...Array.from(layerSet));
+                if (maxLayer < LAYERS.length) {
+                    display.textContent = `LAYER ${maxLayer + 1}: ${LAYERS[maxLayer].title}`;
+                } else {
+                    display.textContent = 'SIMULATION COMPLETE';
+                }
+            }
+        }
+
+        function updateScoreDisplay() {
+            const display = document.getElementById('scoreDisplay');
+            display.innerHTML = '';
+            
+            activeRoles.forEach(roleId => {
+                const role = ROLES[roleId];
+                const state = agentStates[roleId];
+                
+                let totalE = 0, totalT = 0, totalP = 0;
+                state.selections.forEach(({ option }) => {
+                    totalE += option.ethics;
+                    totalT += option.tech;
+                    totalP += option.profit;
+                });
+                
+                const [wE, wP, wT] = role.weights;
+                const final = (wE * totalE + wP * totalP + wT * totalT).toFixed(1);
+                
+                const card = document.createElement('div');
+                card.className = `agent-score ${roleId}`;
+                card.innerHTML = `
+                    <div class="name">${role.name}</div>
+                    <div class="value">${final}</div>
+                `;
+                display.appendChild(card);
+            });
+        }
+
+        function updateFooter() {
+            const footer = document.getElementById('footer');
+            footer.innerHTML = '';
+            
+            activeRoles.forEach(roleId => {
+                const role = ROLES[roleId];
+                const state = agentStates[roleId];
+                
+                state.selections.forEach(({ option }, idx) => {
+                    const card = document.createElement('div');
+                    card.className = `timeline-card ${roleId}`;
+                    
+                    // Check if this choice was made by other roles
+                    const sharedWith = [];
+                    activeRoles.forEach(otherRoleId => {
+                        if (otherRoleId !== roleId) {
+                            const otherSelections = agentStates[otherRoleId].selections;
+                            if (otherSelections[idx] && otherSelections[idx].option.id === option.id) {
+                                sharedWith.push(ROLES[otherRoleId].symbol);
+                            }
+                        }
+                    });
+                    
+                    const sharedIndicator = sharedWith.length > 0 ? ` ⟲ ${sharedWith.join('')}` : '';
+                    
+                    card.innerHTML = `
+                        <div class="header">
+                            <span>${role.symbol} ${role.name}</span>
+                            <span>L${idx + 1}</span>
+                        </div>
+                        <div class="body">${option.icon} ${option.label}: ${option.title}${sharedIndicator}</div>
+                        <div class="impact">E${option.ethics} P${option.profit} T${option.tech}</div>
+                    `;
+                    footer.appendChild(card);
+                });
+            });
+        }
+
+        function updateLayerViz() {
+            const viz = document.getElementById('layerViz');
+            viz.innerHTML = '';
+            
+            LAYERS.forEach((layer, idx) => {
+                const marker = document.createElement('div');
+                marker.className = 'layer-marker';
+                
+                const title = document.createElement('div');
+                title.className = 'layer-title';
+                title.textContent = `L${idx + 1}: ${layer.title}`;
+                marker.appendChild(title);
+                
+                const agents = document.createElement('div');
+                agents.className = 'layer-agents';
+                
+                activeRoles.forEach(roleId => {
+                    const role = ROLES[roleId];
+                    const state = agentStates[roleId];
+                    const agent = document.createElement('div');
+                    agent.className = `layer-agent ${roleId}`;
+                    
+                    if (state.layer > idx) {
+                        agent.classList.add('complete');
+                        agent.textContent = role.symbol;
+                    }
+                    
+                    agents.appendChild(agent);
+                });
+                
+                marker.appendChild(agents);
+                viz.appendChild(marker);
+            });
+        }
+
+        function showAllPaths() {
+            // Highlight all selected cells
+            grid.forEach(row => row.forEach(cell => {
+                let selectedByCount = 0;
+                activeRoles.forEach(roleId => {
+                    if (cell.classList.contains(`selected-${roleId}`)) {
+                        selectedByCount++;
+                    }
+                });
+                
+                if (selectedByCount > 0) {
+                    cell.style.animation = 'pulse 1s ease-in-out';
+                    setTimeout(() => {
+                        cell.style.animation = '';
+                    }, 1000);
+                }
+            }));
+        }
+
+        function reset() {
+            activeRoles.clear();
+            agentStates = {
+                ux: { layer: 0, selections: [] },
+                pm: { layer: 0, selections: [] },
+                eng: { layer: 0, selections: [] }
+            };
+            
+            document.querySelectorAll('.role-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            initGrid();
+            updatePhaseDisplay();
+            updateScoreDisplay();
+            updateFooter();
+            updateLayerViz();
+            document.getElementById('lineLayer').innerHTML = '';
+        }
+
+        // INIT
+        initGrid();
+        updatePhaseDisplay();
+        updateLayerViz();
+    </script>
+</body>
+</html>
