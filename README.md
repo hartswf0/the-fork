@@ -1,5 +1,8 @@
-
+🍴 
 A laboratory for ethical negotiation through conversation with moral agents.
+
+The Fork is part of a larger ecosystem of ethical engines, training substrates, and memory-remediation consoles I am building. This repo (`https://github.com/hartswf0/the-fork`) and its live deployment (`https://hartswf0.github.io/the-fork/`) include the RAILWAY GAME full integration cartridge at `https://hartswf0.github.io/the-fork/RAILWAY%20GAME/railway-full-integration.html`, which requires an OpenAI API key to run agent reasoning. The Fork draws scenario logic and branching structure from **1000 Small Futures** (`https://hartswf0.github.io/1000-small-futures/`) and from the **MEMORY REMEDIATION SYSTEM • LUMIÈRE-LUHMANN PROTOCOL V.1895** in **Synarchiv** (`https://hartswf0.github.io/synarchiv/`), in particular `https://hartswf0.github.io/synarchiv/train-brain19.html`. Related “training ground” infrastructure is developed in the **FUNCTIONAL SUBSTRATE — TRAINING GROUND INDEX** at `https://hartswf0.github.io/func-sub/func-index.html`, while new work on word assembly and “what happens when you give AI LEGOS” is explored in **TRACTOR DCE-GYO** at `https://hartswf0.github.io/tractor-dce-gyo/`. Additional ethics infrastructure for situated workplace and design negotiation lives in **Role Deck — Ethical Design Exploration & Workplace Negotiation Simulation** at `https://hartswf0.github.io/role-deck/HUB.html`. Together, these projects form a unified technical and conceptual substrate for The Fork: a distributed research environment for agency, memory, ethics, and model-based negotiation across AI–human interfaces.
+
 
 ## Mission
 
