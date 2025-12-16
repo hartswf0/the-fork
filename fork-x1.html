@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>🧬 DNA Railway: Cas9 Simulator</title>
+  
+  <!-- THREE.JS CORE - r128 (Compatible Version) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+  <style>
+    :root {
+      --bg: #020406;
+      --panel: rgba(10, 15, 20, 0.85);
+      --border: rgba(0, 255, 136, 0.2);
+      
+      /* Base Colors */
+      --c-adenine: #ff3355;   /* A - Red/Pink */
+      --c-cytosine: #00f0ff;  /* C - Cyan */
+      --c-guanine: #00ff88;   /* G - Green */
+      --c-thymine: #ffcc00;   /* T - Yellow/Gold */
+      
+      --font-mono: "SF Mono", "Courier New", monospace;
+    }
+
+    body {
+      margin: 0; overflow: hidden; background: var(--bg);
+      font-family: var(--font-mono); color: #fff;
+      user-select: none; -webkit-tap-highlight-color: transparent;
+    }
+
+    /* --- HUD OVERLAYS --- */
+    #ui-layer {
+      position: absolute; inset: 0; pointer-events: none;
+      display: flex; flex-direction: column; justify-content: space-between;
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+      z-index: 10;
+    }
+
+    /* TOP BAR: GENOME VISUALIZER */
+    .top-hud {
+      pointer-events: auto;
+      background: linear-gradient(180deg, rgba(0,0,0,0.9), transparent);
+      padding: 12px;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    
+    .status-row {
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 11px; color: #889; letter-spacing: 1px; font-weight: 700;
+    }
+
+    #genome-tape {
+      display: flex; gap: 2px; height: 16px; width: 100%;
+      background: rgba(255,255,255,0.05); border-radius: 4px;
+      overflow: hidden; position: relative; cursor: pointer;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    .base-pair {
+      flex: 1; height: 100%; transition: all 0.3s;
+      opacity: 0.9;
+    }
+    .base-pair.A { background: var(--c-adenine); }
+    .base-pair.C { background: var(--c-cytosine); }
+    .base-pair.G { background: var(--c-guanine); }
+    .base-pair.T { background: var(--c-thymine); }
+
+    /* SYSTEM LOG */
+    #sys-log {
+      position: absolute; top: 90px; left: 12px;
+      width: 280px; max-height: 150px;
+      overflow: hidden; 
+      display: flex; flex-direction: column-reverse;
+      gap: 4px; mask-image: linear-gradient(to bottom, transparent, black 10%);
+      pointer-events: none;
+    }
+    .log-msg {
+      font-size: 10px; padding: 4px 8px;
+      background: rgba(0,0,0,0.6); border-left: 2px solid #555;
+      animation: slideIn 0.2s ease-out; text-shadow: 0 1px 2px #000;
+    }
+    @keyframes slideIn { from { transform: translateX(-20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+    /* BOTTOM CONTROLS */
+    .controls-area {
+      pointer-events: auto;
+      padding: 20px;
+      background: linear-gradient(0deg, rgba(0,0,0,0.95) 30%, transparent);
+      display: flex; flex-direction: column; gap: 10px; align-items: center;
+    }
+
+    .track-switcher {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+      width: 100%; max-width: 500px;
+    }
+
+    .track-btn {
+      background: rgba(20,20,30,0.9);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 12px; height: 64px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      color: #fff; font-family: var(--font-mono); cursor: pointer;
+      transition: all 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      position: relative; overflow: hidden;
+    }
+    .track-btn span { font-size: 24px; font-weight: 900; }
+    .track-btn small { font-size: 9px; opacity: 0.7; text-transform: uppercase; margin-top: 2px; letter-spacing: 1px; }
+    
+    .track-btn:active { transform: scale(0.95); }
+    .track-btn.active { transform: translateY(-6px); box-shadow: 0 0 20px rgba(0,0,0,0.5); border-width: 2px; z-index: 2; }
+
+    /* COLORS */
+    .track-btn[data-track="0"] { border-color: var(--c-cytosine); color: var(--c-cytosine); }
+    .track-btn[data-track="0"].active { background: rgba(0, 240, 255, 0.1); box-shadow: 0 0 25px var(--c-cytosine); }
+    
+    .track-btn[data-track="1"] { border-color: var(--c-guanine); color: var(--c-guanine); }
+    .track-btn[data-track="1"].active { background: rgba(0, 255, 136, 0.1); box-shadow: 0 0 25px var(--c-guanine); }
+
+    .track-btn[data-track="2"] { border-color: var(--c-thymine); color: var(--c-thymine); }
+    .track-btn[data-track="2"].active { background: rgba(255, 204, 0, 0.1); box-shadow: 0 0 25px var(--c-thymine); }
+
+    .track-btn[data-track="3"] { border-color: var(--c-adenine); color: var(--c-adenine); }
+    .track-btn[data-track="3"].active { background: rgba(255, 51, 85, 0.1); box-shadow: 0 0 25px var(--c-adenine); }
+
+    /* EXPORT MODAL */
+    #export-modal {
+      position: fixed; inset: 0; z-index: 100;
+      background: rgba(0,0,0,0.9); backdrop-filter: blur(10px);
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; pointer-events: none; transition: opacity 0.3s;
+    }
+    #export-modal.visible { opacity: 1; pointer-events: auto; }
+    .ticket {
+      background: #0a0a0a; border: 1px solid #333; padding: 24px;
+      border-radius: 16px; text-align: center; width: 90%; max-width: 400px;
+      box-shadow: 0 20px 50px #000;
+    }
+    .ticket canvas { width: 100%; height: auto; border: 1px solid #222; margin: 16px 0; border-radius: 4px; }
+    .close-btn { 
+      background: #222; color: #fff; border: 1px solid #444; padding: 12px 24px; 
+      border-radius: 8px; cursor: pointer; font-family: inherit; font-size: 12px; letter-spacing: 1px;
+    }
+    .close-btn:hover { background: #333; }
+
+    /* LOADER */
+    #loader {
+      position: fixed; inset: 0; background: #000; z-index: 200;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      transition: opacity 0.5s;
+    }
+    .dna-spinner {
+      width: 40px; height: 40px; border: 3px solid rgba(0,255,136,0.3);
+      border-top-color: var(--c-guanine); border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    #error-msg {
+      margin-top: 20px; color: #ff3355; font-size: 12px; text-align: center; display: none;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+  <!-- 3D CANVAS -->
+  <div id="canvas-container" style="position:fixed; inset:0;"></div>
+
+  <!-- HUD -->
+  <div id="ui-layer">
+    <div class="top-hud">
+      <div class="status-row">
+        <span>ETHNOME SEQUENCE</span>
+        <span id="score-disp" style="color:#fff">000 BP</span>
+      </div>
+      <div id="genome-tape" title="Tap to Export Ticket"></div>
+      <div class="status-row" style="margin-top:4px; opacity:0.6;">
+        <span>TAP TAPE TO EXPORT</span>
+        <span id="speed-disp">1.0x</span>
+      </div>
+    </div>
+
+    <div id="sys-log"></div>
+
+    <div class="controls-area">
+      <div style="font-size:10px; opacity:0.5; text-transform:uppercase; letter-spacing:2px; margin-bottom:4px;">Select Polymerase Track</div>
+      <div class="track-switcher">
+        <div class="track-btn active" data-track="0"><span>C</span><small>CARE</small></div>
+        <div class="track-btn" data-track="1"><span>G</span><small>GROWTH</small></div>
+        <div class="track-btn" data-track="2"><span>T</span><small>TRUTH</small></div>
+        <div class="track-btn" data-track="3"><span>A</span><small>ACTION</small></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- EXPORT MODAL -->
+  <div id="export-modal">
+    <div class="ticket">
+      <div style="color:var(--c-guanine); font-size:11px; letter-spacing:2px; margin-bottom:8px; font-weight:bold;">SEQUENCE COMPLETE</div>
+      <h2 style="margin:0 0 4px; font-size:20px; color:#fff;">ETHNOME TICKET</h2>
+      <canvas id="ticket-canvas"></canvas>
+      <div style="font-size:10px; color:#666; margin-bottom:20px;">Long press image to save to device</div>
+      <button class="close-btn" onclick="document.getElementById('export-modal').classList.remove('visible')">RESUME SIMULATION</button>
+    </div>
+  </div>
+
+  <!-- LOADER -->
+  <div id="loader">
+    <div class="dna-spinner"></div>
+    <div id="error-msg"></div>
+  </div>
+
+<script>
+/**
+ * 3D DNA RAILWAY SIMULATOR - FULL INTEGRATION
+ * Features: Flat Physics, Capsule Train, Snake Movement, Export Ticket
+ */
+
+// GLOBAL ERROR HANDLER
+window.onerror = function(message, source, lineno, colno, error) {
+  const loader = document.getElementById('loader');
+  const spinner = document.querySelector('.dna-spinner');
+  const errMsg = document.getElementById('error-msg');
+  if (loader && errMsg) {
+    if(spinner) spinner.style.display = 'none';
+    errMsg.style.display = 'block';
+    errMsg.innerHTML = `ERROR:<br>${message}<br>Line: ${lineno}`;
+    // Force remove loader after 3s anyway so UI is visible
+    setTimeout(() => { loader.style.opacity = 0; setTimeout(()=>loader.remove(),500); }, 3000);
+  }
+};
+
+// --- CONFIG ---
+const CONFIG = {
+  tracks: [
+    { radius: 15, color: 0x00f0ff, name: "Cytosine (Care)", letter: "C" },
+    { radius: 22, color: 0x00ff88, name: "Guanine (Growth)", letter: "G" }, 
+    { radius: 29, color: 0xffcc00, name: "Thymine (Truth)", letter: "T" },
+    { radius: 36, color: 0xff3355, name: "Adenine (Action)", letter: "A" }
+  ],
+  trainSpeed: 0.005,
+  trainSegmentSize: 1.2
+};
+
+// --- STATE ---
+const STATE = {
+  currentTrack: 0, 
+  genome: [], 
+  progress: 0, 
+  speedMod: 1.0,
+  entities: [],
+  trail: [] // History for snake movement
+};
+
+// --- THREE.JS GLOBALS ---
+let scene, camera, renderer;
+let trainGroup, trainHead, trainCars = [];
+let trackMeshes = [];
+let gridGroup;
+
+// --- INIT ---
+function init() {
+  try {
+    const container = document.getElementById('canvas-container');
+    
+    // Check for THREE
+    if (typeof THREE === 'undefined') {
+      throw new Error("Three.js not loaded");
+    }
+
+    // Scene Setup
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x020406);
+    scene.fog = new THREE.FogExp2(0x020406, 0.025);
+
+    // Camera
+    camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 1000);
+    
+    // Renderer
+    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    container.appendChild(renderer.domElement);
+
+    // Lights
+    const ambientLight = new THREE.AmbientLight(0x404040, 2.5); 
+    scene.add(ambientLight);
+
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
+    dirLight.position.set(10, 50, 20);
+    scene.add(dirLight);
+
+    // --- BUILD WORLD ---
+    createGrid();
+    createTracks();
+    createTrain(); 
+    
+    // --- EVENTS ---
+    window.addEventListener('resize', onResize);
+    setupControls();
+    
+    log("System Online. Cas9 Engine Ready.");
+    log("Select track to intercept Base Pairs.");
+    
+    animate();
+
+  } catch (err) {
+    console.error("Init Error:", err);
+    throw err;
+  } finally {
+    // ALWAYS remove loader
+    const loader = document.getElementById('loader');
+    if (loader) {
+      loader.style.opacity = 0;
+      setTimeout(() => {
+          if (loader.parentNode) loader.parentNode.removeChild(loader);
+      }, 500);
+    }
+  }
+}
+
+// --- WORLD BUILDING ---
+
+function createGrid() {
+  gridGroup = new THREE.Group();
+  const geo = new THREE.CylinderGeometry(0.8, 0.8, 0.1, 6);
+  const mat = new THREE.MeshLambertMaterial({ color: 0x112233, transparent: true, opacity: 0.3 });
+  
+  for(let x=-12; x<=12; x++) {
+    for(let z=-12; z<=12; z++) {
+      if(Math.sqrt(x*x + z*z) < 4) continue; 
+      if(Math.random() > 0.65) continue; 
+
+      const mesh = new THREE.Mesh(geo, mat);
+      const xPos = x * 2.5 + (z%2) * 1.25;
+      const zPos = z * 2.2;
+      
+      mesh.position.set(xPos, -2, zPos);
+      mesh.scale.y = 1 + Math.random() * 12;
+      mesh.position.y = -2 - (mesh.scale.y * 0.05); 
+      gridGroup.add(mesh);
+    }
+  }
+  scene.add(gridGroup);
+}
+
+function createTracks() {
+  CONFIG.tracks.forEach((t) => {
+    const curve = new THREE.EllipseCurve(0, 0, t.radius, t.radius, 0, 2 * Math.PI, false, 0);
+    const pts = curve.getPoints(128);
+    const geo = new THREE.BufferGeometry().setFromPoints(pts.map(p => new THREE.Vector3(p.x, 0, p.y)));
+    
+    const mat = new THREE.LineBasicMaterial({ 
+      color: t.color, 
+      opacity: 0.4, 
+      transparent: true, 
+      linewidth: 1 
+    });
+    const line = new THREE.Line(geo, mat);
+    scene.add(line);
+    trackMeshes.push(line);
+    
+    for(let j=0; j<24; j++) {
+      const angle = (j/24) * Math.PI * 2;
+      const mx = Math.cos(angle) * t.radius;
+      const mz = Math.sin(angle) * t.radius;
+      const mGeo = new THREE.BoxGeometry(0.2, 0.1, 0.8);
+      const mMat = new THREE.MeshBasicMaterial({ color: t.color, opacity: 0.5, transparent:true });
+      const m = new THREE.Mesh(mGeo, mMat);
+      m.position.set(mx, 0, mz);
+      m.lookAt(0,0,0);
+      scene.add(m);
+    }
+  });
+}
+
+function createTrain() {
+  trainGroup = new THREE.Group();
+  
+  // GEOMETRY FALLBACK for r128 (CapsuleGeometry is r137+)
+  let bodyGeo;
+  if (THREE.CapsuleGeometry) {
+      bodyGeo = new THREE.CapsuleGeometry(1.0, 3.5, 4, 8);
+  } else {
+      // Fallback for r128
+      bodyGeo = new THREE.CylinderGeometry(1.0, 1.0, 3.5, 8);
+  }
+
+  const bodyMat = new THREE.MeshStandardMaterial({ 
+    color: 0xeeeeee, 
+    roughness: 0.3,
+    metalness: 0.7
+  });
+  trainHead = new THREE.Mesh(bodyGeo, bodyMat);
+  
+  trainHead.rotation.x = Math.PI / 2;
+  trainGroup.add(trainHead);
+  
+  // Cockpit
+  const cockpitGeo = new THREE.BoxGeometry(1.2, 0.8, 1.8);
+  const cockpitMat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
+  const cockpit = new THREE.Mesh(cockpitGeo, cockpitMat);
+  cockpit.position.set(0, 0.6, 0.5); 
+  trainHead.add(cockpit);
+
+  // Headlight Cone
+  const coneGeo = new THREE.ConeGeometry(0.5, 5, 32, 1, true);
+  const coneMat = new THREE.MeshBasicMaterial({ 
+    color: 0xffffff, transparent: true, opacity: 0.15, side: THREE.DoubleSide, blending: THREE.AdditiveBlending 
+  });
+  const cone = new THREE.Mesh(coneGeo, coneMat);
+  cone.rotation.x = -Math.PI / 2; 
+  cone.position.set(0, 0, 4); 
+  trainHead.add(cone);
+
+  // Real Spotlight
+  const light = new THREE.SpotLight(0xffffff, 2, 60, 0.6, 0.5, 1);
+  light.position.set(0, 2, 0);
+  light.target.position.set(0, 0, 15);
+  trainHead.add(light);
+  trainHead.add(light.target);
+
+  scene.add(trainGroup);
+  
+  addCar('Start');
+}
+
+function addCar(type) {
+  const color = getTypeColor(type);
+  const geo = new THREE.BoxGeometry(1.6, 1.0, 2.0);
+  const mat = new THREE.MeshStandardMaterial({ 
+    color: color,
+    emissive: color,
+    emissiveIntensity: 0.3
+  });
+  const car = new THREE.Mesh(geo, mat);
+  
+  trainCars.push({ mesh: car, type: type });
+  scene.add(car);
+  
+  updateGenomeHUD(type);
+}
+
+function getTypeColor(type) {
+  if (type === 'A') return CONFIG.tracks[3].color;
+  if (type === 'C') return CONFIG.tracks[0].color;
+  if (type === 'G') return CONFIG.tracks[1].color;
+  if (type === 'T') return CONFIG.tracks[2].color;
+  return 0x333333; 
+}
+
+// --- LOGIC & ANIMATION ---
+
+function spawnEntity() {
+  if (STATE.entities.length > 10) return; 
+  
+  const trackIdx = Math.floor(Math.random() * 4);
+  const track = CONFIG.tracks[trackIdx];
+  
+  const angleOffset = 0.5 + Math.random() * 1.5; 
+  const spawnAngle = (STATE.progress * Math.PI * 2) + angleOffset;
+  
+  const x = Math.cos(spawnAngle) * track.radius;
+  const z = Math.sin(spawnAngle) * track.radius;
+  
+  const type = track.letter;
+  const geo = new THREE.OctahedronGeometry(1.0);
+  const mat = new THREE.MeshPhongMaterial({ 
+    color: track.color, 
+    emissive: track.color, 
+    emissiveIntensity: 0.6
+  });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.set(x, 1.5, z);
+  
+  mesh.userData = { 
+    angle: spawnAngle, 
+    trackIdx: trackIdx, 
+    type: type,
+    pulseOffset: Math.random() * 10 
+  };
+  
+  scene.add(mesh);
+  STATE.entities.push(mesh);
+}
+
+function checkCollisions() {
+  const tAngle = (STATE.progress * Math.PI * 2) % (Math.PI*2);
+  const tTrack = STATE.currentTrack;
+  
+  for (let i = STATE.entities.length - 1; i >= 0; i--) {
+    const ent = STATE.entities[i];
+    
+    let angA = tAngle;
+    let angB = ent.userData.angle % (Math.PI*2);
+    if(angB < 0) angB += Math.PI*2;
+    
+    let dist = Math.abs(angA - angB);
+    if(dist > Math.PI) dist = (Math.PI*2) - dist; 
+    
+    if (dist < 0.1 && ent.userData.trackIdx === tTrack) {
+      collectEntity(ent, i);
+    }
+  }
+}
+
+function collectEntity(mesh, index) {
+  log(`Sequence Added: ${mesh.userData.type}`);
+  addCar(mesh.userData.type);
+  scene.remove(mesh);
+  STATE.entities.splice(index, 1);
+  
+  STATE.speedMod += 0.02; 
+  document.getElementById('speed-disp').innerText = STATE.speedMod.toFixed(2) + 'x';
+  document.getElementById('score-disp').innerText = STATE.genome.length + " BP";
+}
+
+function updateTrainPosition() {
+  const t = CONFIG.tracks[STATE.currentTrack];
+  
+  STATE.progress += CONFIG.trainSpeed * STATE.speedMod * 0.016; 
+  if(STATE.progress > 1) STATE.progress -= 1;
+  
+  const angle = STATE.progress * Math.PI * 2;
+  
+  const currentX = trainHead.position.x;
+  const currentZ = trainHead.position.z;
+  const currentRadius = Math.sqrt(currentX*currentX + currentZ*currentZ) || t.radius;
+  
+  const newRadius = THREE.MathUtils.lerp(currentRadius, t.radius, 0.08);
+  
+  const x = Math.cos(angle) * newRadius;
+  const z = Math.sin(angle) * newRadius;
+  
+  trainHead.position.set(x, 1.5, z);
+  
+  const lookAngle = angle + 0.1;
+  const lx = Math.cos(lookAngle) * newRadius;
+  const lz = Math.sin(lookAngle) * newRadius;
+  trainHead.lookAt(lx, 1.5, lz);
+  
+  if(!STATE.trail) STATE.trail = [];
+  STATE.trail.unshift({ x: x, z: z, rot: trainHead.rotation.clone() });
+  
+  const maxHistory = (trainCars.length + 5) * 15;
+  if(STATE.trail.length > maxHistory) STATE.trail.pop();
+  
+  trainCars.forEach((car, i) => {
+    const lag = (i + 1) * 14; 
+    if (STATE.trail[lag]) {
+      const pos = STATE.trail[lag];
+      car.mesh.position.set(pos.x, 1.2, pos.z);
+      car.mesh.rotation.copy(pos.rot);
+    }
+  });
+  
+  // Camera Follow
+  const cx = Math.cos(angle - 0.4) * (newRadius + 25);
+  const cz = Math.sin(angle - 0.4) * (newRadius + 25);
+  
+  camera.position.x = THREE.MathUtils.lerp(camera.position.x, cx, 0.05);
+  camera.position.z = THREE.MathUtils.lerp(camera.position.z, cz, 0.05);
+  camera.position.y = THREE.MathUtils.lerp(camera.position.y, 35, 0.05);
+  
+  camera.lookAt(trainHead.position);
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+  
+  updateTrainPosition();
+  checkCollisions();
+  
+  if(Math.random() < 0.03) spawnEntity();
+  
+  STATE.entities.forEach(e => {
+    e.rotation.y += 0.03;
+    e.rotation.x += 0.02;
+    e.position.y = 1.5 + Math.sin(Date.now() * 0.005 + e.userData.pulseOffset) * 0.3;
+  });
+  
+  gridGroup.children.forEach((c) => {
+    const dist = Math.sqrt(c.position.x**2 + c.position.z**2);
+    if(dist > 0) {
+        c.scale.y = 1 + Math.sin(Date.now()*0.002 + dist*0.3)*3;
+        c.position.y = -2 - (c.scale.y * 0.05);
+    }
+  });
+  
+  renderer.render(scene, camera);
+}
+
+// --- UI & UTILS ---
+
+function setupControls() {
+  const btns = document.querySelectorAll('.track-btn');
+  btns.forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      btns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const trackIdx = parseInt(btn.dataset.track);
+      STATE.currentTrack = trackIdx;
+      log(`Track Switch: ${CONFIG.tracks[trackIdx].name}`);
+    });
+  });
+  document.getElementById('genome-tape').addEventListener('click', generateTicket);
+}
+
+function log(msg) {
+  const box = document.getElementById('sys-log');
+  const el = document.createElement('div');
+  el.className = 'log-msg';
+  el.innerText = `> ${msg}`;
+  box.prepend(el);
+  if(box.children.length > 8) box.lastChild.remove();
+}
+
+function updateGenomeHUD(type) {
+  const tape = document.getElementById('genome-tape');
+  const div = document.createElement('div');
+  div.className = `base-pair ${type}`;
+  tape.appendChild(div);
+  if (tape.children.length > 60) tape.firstChild.remove();
+  STATE.genome.push(type);
+}
+
+function onResize() {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+// --- EXPORT TICKET SYSTEM ---
+function generateTicket() {
+  const modal = document.getElementById('export-modal');
+  const cvs = document.getElementById('ticket-canvas');
+  const ctx = cvs.getContext('2d');
+  
+  cvs.width = 600; 
+  cvs.height = 300;
+  
+  ctx.fillStyle = '#050505'; 
+  ctx.fillRect(0,0,600,300);
+  
+  ctx.strokeStyle = '#222'; ctx.lineWidth = 1;
+  for(let i=0;i<600;i+=20) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,300); ctx.stroke(); }
+  
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 24px Courier New';
+  ctx.fillText(`ETHNOME #${Math.floor(Math.random()*9999)}`, 25, 50);
+  
+  ctx.font = '14px Courier New'; ctx.fillStyle = '#888';
+  ctx.fillText(`LENGTH: ${STATE.genome.length} BASE PAIRS`, 25, 75);
+  ctx.fillText(`DATE: ${new Date().toLocaleDateString()}`, 25, 95);
+  
+  const barW = 550 / Math.max(10, STATE.genome.length);
+  STATE.genome.forEach((base, i) => {
+    let col = '#555';
+    if(base === 'A') col = '#ff3355';
+    if(base === 'C') col = '#00f0ff';
+    if(base === 'G') col = '#00ff88';
+    if(base === 'T') col = '#ffcc00';
+    
+    ctx.fillStyle = col;
+    ctx.fillRect(25 + i*barW, 130, Math.max(1, barW-1), 100);
+  });
+  
+  ctx.fillStyle = '#444'; ctx.font = '12px Courier New';
+  ctx.fillText("GENERATED BY CAS9 RAILWAY SIMULATOR", 25, 270);
+  
+  modal.classList.add('visible');
+}
+
+// ROBUST START LOGIC - RETRY LOOP
+let retryCount = 0;
+function attemptStart() {
+    if (typeof THREE !== 'undefined') {
+        init();
+    } else if (retryCount < 20) {
+        retryCount++;
+        setTimeout(attemptStart, 200);
+    } else {
+        document.getElementById('error-msg').style.display='block';
+        document.getElementById('error-msg').innerText = "FAILED TO LOAD THREE.JS. CHECK CONNECTION.";
+    }
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', attemptStart);
+} else {
+    attemptStart();
+}
+
+</script>
+</body>
+</html>
