@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>🧬 Ethnome: Collaborative Ethics Simulator</title>
+  
+  <!-- THREE.JS CORE - r128 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+  <style>
+    :root {
+      --bg: #05080a;
+      --panel: rgba(15, 20, 25, 0.9);
+      --accent: #00f0ff;
+      
+      /* Ethical Tracks */
+      --c-care: #00f0ff;    /* C - Cytosine - Care/Nursing */
+      --c-growth: #00ff88;  /* G - Guanine - Growth/Business */
+      --c-truth: #ffcc00;   /* T - Thymine - Truth/Science */
+      --c-action: #ff3355;  /* A - Adenine - Action/Policy */
+      
+      --font-mono: "SF Mono", "Courier New", monospace;
+    }
+
+    body {
+      margin: 0; overflow: hidden; background: var(--bg);
+      font-family: var(--font-mono); color: #e0e0e0;
+      user-select: none; -webkit-tap-highlight-color: transparent;
+    }
+
+    /* --- HUD LAYOUT --- */
+    #ui-layer {
+      position: absolute; inset: 0; pointer-events: none;
+      display: flex; flex-direction: column; justify-content: space-between;
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+      z-index: 10;
+    }
+
+    /* TOP BAR */
+    .top-hud {
+      pointer-events: auto;
+      background: linear-gradient(180deg, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.8) 60%, transparent 100%);
+      padding: 12px 16px;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    
+    .header-row {
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    
+    .title-block h1 { margin: 0; font-size: 14px; font-weight: 700; letter-spacing: 1px; color: #fff; }
+    .title-block span { font-size: 10px; color: #889; text-transform: uppercase; }
+
+    .tool-btns { display: flex; gap: 8px; }
+    .mini-btn {
+      background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+      color: #aaa; padding: 4px 8px; border-radius: 4px; font-size: 10px; cursor: pointer;
+      font-family: inherit; transition: all 0.2s;
+    }
+    .mini-btn:hover { background: #fff; color: #000; }
+
+    /* GENOME TAPE */
+    #genome-tape {
+      display: flex; gap: 2px; height: 12px; width: 100%;
+      background: rgba(0,0,0,0.5); border-radius: 2px;
+      overflow: hidden; cursor: pointer; border: 1px solid rgba(255,255,255,0.1);
+    }
+    .base-pair { flex: 1; height: 100%; opacity: 0.9; }
+    .base-pair.C { background: var(--c-care); }
+    .base-pair.G { background: var(--c-growth); }
+    .base-pair.T { background: var(--c-truth); }
+    .base-pair.A { background: var(--c-action); }
+
+    /* SYSTEM LOG (Stakeholder Feedback) */
+    #sys-log {
+      position: absolute; top: 120px; left: 16px; right: 16px;
+      height: 120px; overflow: hidden; 
+      display: flex; flex-direction: column-reverse;
+      gap: 6px; mask-image: linear-gradient(to bottom, transparent, black 15%);
+      pointer-events: none;
+    }
+    .log-msg {
+      font-size: 11px; padding: 6px 10px; border-radius: 4px;
+      background: rgba(10,15,20,0.85); border-left: 3px solid #555;
+      backdrop-filter: blur(4px);
+      animation: slideIn 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+      max-width: 400px;
+    }
+    .log-msg b { color: #fff; font-weight: 700; margin-right: 6px; text-transform: uppercase; font-size: 9px; letter-spacing: 1px;}
+    .log-msg i { display: block; margin-top: 2px; opacity: 0.8; color: #ddd; }
+    @keyframes slideIn { from { transform: translateX(-20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+    /* CONTROLS */
+    .controls-area {
+      pointer-events: auto; padding: 20px;
+      background: linear-gradient(0deg, rgba(0,0,0,1) 40%, transparent);
+      display: flex; flex-direction: column; gap: 10px; align-items: center;
+    }
+
+    .track-switcher {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+      width: 100%; max-width: 500px;
+    }
+
+    .track-btn {
+      background: rgba(20,20,30,0.9);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 8px; height: 60px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      color: #fff; cursor: pointer; position: relative; overflow: hidden;
+      transition: all 0.1s ease;
+    }
+    .track-btn span { font-size: 18px; font-weight: 900; }
+    .track-btn small { font-size: 9px; opacity: 0.7; letter-spacing: 1px; margin-top: 2px; }
+    
+    .track-btn.active { transform: translateY(-4px); box-shadow: 0 0 20px rgba(0,0,0,0.6); border-width: 2px; }
+
+    /* BUTTON COLORS */
+    .track-btn[data-track="0"] { border-color: var(--c-care); color: var(--c-care); }
+    .track-btn[data-track="0"].active { background: rgba(0, 240, 255, 0.15); box-shadow: 0 0 30px var(--c-care); }
+    
+    .track-btn[data-track="1"] { border-color: var(--c-growth); color: var(--c-growth); }
+    .track-btn[data-track="1"].active { background: rgba(0, 255, 136, 0.15); box-shadow: 0 0 30px var(--c-growth); }
+    
+    .track-btn[data-track="2"] { border-color: var(--c-truth); color: var(--c-truth); }
+    .track-btn[data-track="2"].active { background: rgba(255, 204, 0, 0.15); box-shadow: 0 0 30px var(--c-truth); }
+    
+    .track-btn[data-track="3"] { border-color: var(--c-action); color: var(--c-action); }
+    .track-btn[data-track="3"].active { background: rgba(255, 51, 85, 0.15); box-shadow: 0 0 30px var(--c-action); }
+
+    /* MODALS */
+    .modal-overlay {
+      position: fixed; inset: 0; z-index: 100;
+      background: rgba(0,0,0,0.85); backdrop-filter: blur(8px);
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; pointer-events: none; transition: opacity 0.3s;
+    }
+    .modal-overlay.visible { opacity: 1; pointer-events: auto; }
+    
+    .modal-box {
+      background: #111; border: 1px solid #333; padding: 24px;
+      border-radius: 16px; width: 90%; max-width: 420px;
+      box-shadow: 0 20px 60px #000; color: #ccc;
+    }
+    .modal-box h2 { margin: 0 0 10px; color: #fff; font-size: 18px; }
+    .modal-box p { font-size: 13px; line-height: 1.5; margin-bottom: 12px; }
+    .modal-box ul { padding-left: 20px; font-size: 12px; line-height: 1.6; margin-bottom: 20px; }
+    .modal-box li::marker { color: #555; }
+    
+    .ticket canvas { width: 100%; height: auto; border: 1px solid #222; margin: 16px 0; border-radius: 4px; }
+    
+    .action-btn { 
+      background: #eee; color: #000; border: none; padding: 12px 20px; width: 100%;
+      border-radius: 6px; cursor: pointer; font-weight: 700; font-size: 12px; letter-spacing: 1px;
+    }
+    .action-btn:hover { background: #fff; }
+
+    /* LOADER */
+    #loader {
+      position: fixed; inset: 0; background: #000; z-index: 9999;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      transition: opacity 0.5s;
+    }
+    .spinner {
+      width: 40px; height: 40px; border: 3px solid rgba(255,255,255,0.1);
+      border-top-color: #fff; border-radius: 50%;
+      animation: spin 1s linear infinite; margin-bottom: 10px;
+    }
+    #error-msg { color: #f35; font-size: 12px; margin-top: 10px; display: none; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+  <div id="canvas-container" style="position:fixed; inset:0;"></div>
+
+  <div id="ui-layer">
+    <div class="top-hud">
+      <div class="header-row">
+        <div class="title-block">
+          <h1>ETHNOME SIMULATOR</h1>
+          <span>Cas9 Decision Engine v2.4</span>
+        </div>
+        <div class="tool-btns">
+          <button class="mini-btn" onclick="showHelp()">HELP</button>
+          <button class="mini-btn" onclick="resetSim()">RESET</button>
+        </div>
+      </div>
+      
+      <div id="genome-tape" title="Download Vibe Ticket"></div>
+      
+      <div class="header-row" style="opacity: 0.6; font-size: 10px;">
+        <span>VIBE TAPE (TAP TO DOWNLOAD)</span>
+        <span id="score-disp">0 STAKEHOLDERS</span>
+      </div>
+    </div>
+
+    <div id="sys-log"></div>
+
+    <div class="controls-area">
+      <div style="font-size:10px; opacity:0.5; text-transform:uppercase; letter-spacing:2px; margin-bottom:6px;">Select Ethical Framework</div>
+      <div class="track-switcher">
+        <div class="track-btn active" data-track="0"><span>C</span><small>CARE</small></div>
+        <div class="track-btn" data-track="1"><span>G</span><small>GROWTH</small></div>
+        <div class="track-btn" data-track="2"><span>T</span><small>TRUTH</small></div>
+        <div class="track-btn" data-track="3"><span>A</span><small>ACTION</small></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HELP MODAL -->
+  <div id="help-modal" class="modal-overlay">
+    <div class="modal-box">
+      <h2>Research Context</h2>
+      <p>This simulator models ethical decision-making in high-velocity environments. You are the conductor of the Cas9 Gene Drive.</p>
+      <p><strong>Instructions:</strong></p>
+      <ul>
+        <li><span style="color:var(--c-care)">CARE (C)</span>: Prioritize individual well-being and safety.</li>
+        <li><span style="color:var(--c-growth)">GROWTH (G)</span>: Prioritize expansion, resources, and scale.</li>
+        <li><span style="color:var(--c-truth)">TRUTH (T)</span>: Prioritize data accuracy and transparency.</li>
+        <li><span style="color:var(--c-action)">ACTION (A)</span>: Prioritize speed, intervention, and results.</li>
+      </ul>
+      <p>Switch tracks to align with the <strong>Stakeholders</strong> you encounter. Your choices build your "Ethnome" ticket.</p>
+      <button class="action-btn" onclick="closeModals()">RETURN TO SIMULATION</button>
+    </div>
+  </div>
+
+  <!-- TICKET MODAL -->
+  <div id="ticket-modal" class="modal-overlay">
+    <div class="modal-box ticket">
+      <div style="color:#888; font-size:10px; letter-spacing:2px; margin-bottom:8px; font-weight:bold;">SESSION REPORT</div>
+      <h2 style="font-size:22px;">ETHNOME TICKET</h2>
+      <canvas id="ticket-canvas"></canvas>
+      <div style="font-size:11px; color:#666; margin-bottom:20px;">Save this image to your research log.</div>
+      <button class="action-btn" onclick="closeModals()">CONTINUE</button>
+    </div>
+  </div>
+
+  <!-- LOADER -->
+  <div id="loader">
+    <div class="spinner"></div>
+    <div style="font-size: 10px; color: #666; letter-spacing: 2px;">INITIALIZING ENGINE</div>
+    <div id="error-msg"></div>
+  </div>
+
+<script>
+/**
+ * DNA RAILWAY: CAS9 SIMULATOR (GOLDEN MASTER)
+ * - Custom Train Geometry
+ * - Personas & Dialogue
+ * - Full UI Suite
+ */
+
+// --- DATA: STAKEHOLDERS ---
+const STAKEHOLDERS = [
+  // CARE (C)
+  { type: 'C', role: "Nurse", name: "Sarah J.", quote: "Patients first. Do no harm." },
+  { type: 'C', role: "Teacher", name: "Mr. Al-Fayed", quote: "Think of the next generation." },
+  { type: 'C', role: "Parent", name: "Maria", quote: "My child needs this cure safe." },
+  { type: 'C', role: "Social Worker", name: "David", quote: "Don't leave the vulnerable behind." },
+  // GROWTH (G)
+  { type: 'G', role: "Investor", name: "Elena", quote: "Scale is the only way to impact." },
+  { type: 'G', role: "Founder", name: "Kaito", quote: "Move fast, break barriers." },
+  { type: 'G', role: "Economist", name: "Dr. Vance", quote: "Resource allocation is critical." },
+  { type: 'G', role: "Builder", name: "Sam", quote: "Infrastructure enables everything." },
+  // TRUTH (T)
+  { type: 'T', role: "Researcher", name: "Dr. Chen", quote: "The data doesn't lie." },
+  { type: 'T', role: "Journalist", name: "Lois", quote: "Transparency above comfort." },
+  { type: 'T', role: "Analyst", name: "Ravi", quote: "Verify before you validate." },
+  { type: 'T', role: "Historian", name: "Alice", quote: "Remember the errors of the past." },
+  // ACTION (A)
+  { type: 'A', role: "Responder", name: "Lt. Dan", quote: "No time to hesitate." },
+  { type: 'A', role: "Activist", name: "Maya", quote: "Change happens now." },
+  { type: 'A', role: "Pilot", name: "Capt. Lee", quote: "Stay on target. Mission first." },
+  { type: 'A', role: "Surgeon", name: "Dr. Banks", quote: "To save life, you must cut." }
+];
+
+// --- CONFIG ---
+const CONFIG = {
+  tracks: [
+    { radius: 16, color: 0x00f0ff, name: "Care" },
+    { radius: 24, color: 0x00ff88, name: "Growth" }, 
+    { radius: 32, color: 0xffcc00, name: "Truth" },
+    { radius: 40, color: 0xff3355, name: "Action" }
+  ],
+  trainSpeed: 0.005,
+};
+
+// --- STATE ---
+const STATE = {
+  currentTrack: 0, 
+  genome: [], // History of collected personas
+  progress: 0, 
+  speedMod: 1.0,
+  entities: [],
+  trail: [] 
+};
+
+// --- GLOBALS ---
+let scene, camera, renderer, trainGroup;
+let trainCars = [];
+let gridGroup;
+
+// --- INIT ---
+function init() {
+  try {
+    const container = document.getElementById('canvas-container');
+    if (typeof THREE === 'undefined') throw new Error("Three.js not loaded");
+
+    // Scene
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x05080a);
+    scene.fog = new THREE.FogExp2(0x05080a, 0.02);
+
+    // Camera
+    camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 1000);
+    
+    // Renderer
+    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    container.appendChild(renderer.domElement);
+
+    // Light
+    const ambient = new THREE.AmbientLight(0xffffff, 0.6); 
+    scene.add(ambient);
+    const sun = new THREE.DirectionalLight(0xffffff, 1.2);
+    sun.position.set(20, 50, 20);
+    sun.castShadow = true;
+    scene.add(sun);
+    
+    // Point light on train
+    const trainLight = new THREE.PointLight(0x00f0ff, 2, 30);
+    trainLight.position.set(0, 5, 0);
+    scene.add(trainLight); // Will attach to train later
+
+    // Build World
+    buildGrid();
+    buildTracks();
+    buildTrain();
+    
+    // Events
+    window.addEventListener('resize', onResize);
+    setupControls();
+    
+    // Start loop
+    animate();
+    
+    // Remove loader
+    const loader = document.getElementById('loader');
+    if(loader) {
+      loader.style.opacity = 0;
+      setTimeout(() => loader.remove(), 500);
+    }
+    
+    log("Simulation initialized.", "System");
+    log("Waiting for stakeholder input...", "System");
+
+  } catch (err) {
+    document.getElementById('error-msg').style.display='block';
+    document.getElementById('error-msg').innerText = "INIT FAILED: " + err.message;
+  }
+}
+
+// --- WORLD GENERATION ---
+
+function buildGrid() {
+  gridGroup = new THREE.Group();
+  const geo = new THREE.BoxGeometry(1, 1, 1);
+  const mat = new THREE.MeshLambertMaterial({ color: 0x1a2a3a, transparent: true, opacity: 0.8 });
+  
+  // Procedural "City" Grid
+  for(let x=-15; x<=15; x++) {
+    for(let z=-15; z<=15; z++) {
+      if(Math.sqrt(x*x + z*z) < 5) continue; // Clearing for tracks
+      if(Math.random() > 0.3) continue; 
+      
+      const h = 1 + Math.random() * 8;
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.set(x*3, h/2 - 5, z*3);
+      mesh.scale.set(2, h, 2);
+      gridGroup.add(mesh);
+    }
+  }
+  scene.add(gridGroup);
+}
+
+function buildTracks() {
+  CONFIG.tracks.forEach((t) => {
+    // Track Ring
+    const curve = new THREE.EllipseCurve(0, 0, t.radius, t.radius, 0, 2 * Math.PI);
+    const pts = curve.getPoints(128);
+    const geo = new THREE.BufferGeometry().setFromPoints(pts.map(p => new THREE.Vector3(p.x, 0, p.y)));
+    const mat = new THREE.LineBasicMaterial({ color: t.color, opacity: 0.3, transparent: true });
+    scene.add(new THREE.Line(geo, mat));
+    
+    // Sleepers/Markers
+    const sleeperGeo = new THREE.BoxGeometry(0.5, 0.1, 1.5);
+    const sleeperMat = new THREE.MeshBasicMaterial({ color: t.color, opacity: 0.4, transparent:true });
+    
+    for(let j=0; j<32; j++) {
+      const angle = (j/32) * Math.PI * 2;
+      const m = new THREE.Mesh(sleeperGeo, sleeperMat);
+      m.position.set(Math.cos(angle)*t.radius, -0.1, Math.sin(angle)*t.radius);
+      m.lookAt(0,0,0);
+      scene.add(m);
+    }
+  });
+}
+
+function buildTrain() {
+  trainGroup = new THREE.Group();
+  
+  // Material
+  const matBody = new THREE.MeshStandardMaterial({ color: 0x222, roughness: 0.4, metalness: 0.8 });
+  const matGlow = new THREE.MeshBasicMaterial({ color: 0x00f0ff });
+  const matDark = new THREE.MeshStandardMaterial({ color: 0x111 });
+
+  // 1. Chassis
+  const chassis = new THREE.Mesh(new THREE.BoxGeometry(3, 0.5, 6), matDark);
+  chassis.position.y = 0.5;
+  trainGroup.add(chassis);
+
+  // 2. Wheels (Cylinders)
+  const wheelGeo = new THREE.CylinderGeometry(0.6, 0.6, 0.4, 16);
+  const wheelMat = new THREE.MeshStandardMaterial({ color: 0x555, metalness: 1.0 });
+  const wPositions = [[-1.6, -1.5], [-1.6, 0], [-1.6, 1.5], [1.6, -1.5], [1.6, 0], [1.6, 1.5]]; // relative X, Z (rotated later)
+  // Actually train is Z-forward. Width is X.
+  // Chassis W=3, L=6. Wheels at x= +/- 1.6, z=...
+  
+  wPositions.forEach(p => {
+    // Actually, let's just place 4 big wheels
+  });
+  
+  // 3. Boiler (Main Body)
+  const boiler = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, 4, 16), matBody);
+  boiler.rotation.x = Math.PI / 2;
+  boiler.position.set(0, 1.8, 0.5);
+  trainGroup.add(boiler);
+
+  // 4. Cabin (Back)
+  const cabin = new THREE.Mesh(new THREE.BoxGeometry(2.8, 2.5, 2), matBody);
+  cabin.position.set(0, 2.0, -2);
+  trainGroup.add(cabin);
+  
+  // 5. Cowcatcher (Front)
+  const cowcatcher = new THREE.Mesh(new THREE.ConeGeometry(1.4, 1.5, 4), matDark);
+  cowcatcher.rotation.x = -Math.PI/2; // Point forward
+  cowcatcher.rotation.z = Math.PI/4;  // Diamond shape
+  cowcatcher.position.set(0, 0.8, 3.2);
+  trainGroup.add(cowcatcher);
+
+  // 6. Glowing Stack (Front)
+  const stack = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 1), matGlow);
+  stack.position.set(0, 2.8, 1.5);
+  trainGroup.add(stack);
+
+  // 7. Light Beam
+  const beamGeo = new THREE.ConeGeometry(2, 10, 32, 1, true);
+  const beamMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff, transparent: true, opacity: 0.1, side: THREE.DoubleSide, blending: THREE.AdditiveBlending });
+  const beam = new THREE.Mesh(beamGeo, beamMat);
+  beam.rotation.x = -Math.PI / 2;
+  beam.position.set(0, 0, 7);
+  trainGroup.add(beam);
+
+  scene.add(trainGroup);
+  
+  // Start block
+  addCar(null);
+}
+
+function addCar(type) {
+  // A generic car that gets colored based on type
+  let color = 0x333333;
+  if (type === 'A') color = 0xff3355;
+  if (type === 'C') color = 0x00f0ff;
+  if (type === 'G') color = 0x00ff88;
+  if (type === 'T') color = 0xffcc00;
+
+  const grp = new THREE.Group();
+  
+  // Container
+  const box = new THREE.Mesh(
+    new THREE.BoxGeometry(2.2, 1.5, 3), 
+    new THREE.MeshStandardMaterial({ color: color, roughness: 0.5 })
+  );
+  box.position.y = 1.2;
+  grp.add(box);
+  
+  // Connector
+  const conn = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.2, 1), new THREE.MeshBasicMaterial({color:0x555}));
+  conn.position.set(0, 1, 1.8);
+  grp.add(conn);
+
+  trainCars.push({ mesh: grp, type: type });
+  scene.add(grp);
+  
+  if(type) updateGenomeHUD(type);
+}
+
+// --- LOGIC: STAKEHOLDER SPAWNING ---
+
+function spawnEntity() {
+  if (STATE.entities.length > 8) return; 
+  
+  const trackIdx = Math.floor(Math.random() * 4);
+  const track = CONFIG.tracks[trackIdx];
+  const angle = (STATE.progress * Math.PI * 2) + 0.5 + Math.random() * 2.0;
+  
+  // Pick random persona fitting this track
+  const possible = STAKEHOLDERS.filter(s => s.type === ['C','G','T','A'][trackIdx]);
+  const persona = possible[Math.floor(Math.random()*possible.length)];
+
+  // VISUAL: STAKEHOLDER AVATAR
+  const grp = new THREE.Group();
+  
+  // Body
+  const body = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.3, 0.3, 1.2, 8),
+    new THREE.MeshLambertMaterial({ color: track.color })
+  );
+  body.position.y = 0.6;
+  grp.add(body);
+  
+  // Head
+  const head = new THREE.Mesh(
+    new THREE.SphereGeometry(0.4, 8, 8),
+    new THREE.MeshBasicMaterial({ color: 0xffffff })
+  );
+  head.position.y = 1.4;
+  grp.add(head);
+  
+  // Ring/Halo
+  const ring = new THREE.Mesh(
+    new THREE.TorusGeometry(0.6, 0.05, 4, 16),
+    new THREE.MeshBasicMaterial({ color: track.color })
+  );
+  ring.rotation.x = Math.PI/2;
+  ring.position.y = 0.1;
+  grp.add(ring);
+
+  // Position on track
+  grp.position.set(Math.cos(angle)*track.radius, 0, Math.sin(angle)*track.radius);
+  grp.userData = { angle: angle, trackIdx: trackIdx, persona: persona };
+  
+  scene.add(grp);
+  STATE.entities.push(grp);
+}
+
+// --- PHYSICS & ANIMATION ---
+
+function updatePhysics() {
+  const t = CONFIG.tracks[STATE.currentTrack];
+  
+  // 1. Move
+  STATE.progress += CONFIG.trainSpeed * STATE.speedMod * 0.016; 
+  if(STATE.progress > 1) STATE.progress -= 1;
+  const angle = STATE.progress * Math.PI * 2;
+  
+  // 2. Train Position (Lerp Radius)
+  const currentX = trainGroup.position.x;
+  const currentZ = trainGroup.position.z;
+  const currentRad = Math.sqrt(currentX*currentX + currentZ*currentZ) || t.radius;
+  const newRad = THREE.MathUtils.lerp(currentRad, t.radius, 0.05); // Smooth lane switch
+  
+  const x = Math.cos(angle) * newRad;
+  const z = Math.sin(angle) * newRad;
+  trainGroup.position.set(x, 0, z);
+  
+  // Look Forward
+  const lx = Math.cos(angle + 0.1) * newRad;
+  const lz = Math.sin(angle + 0.1) * newRad;
+  trainGroup.lookAt(lx, 0, lz);
+  
+  // 3. Snake Logic
+  STATE.trail.unshift({ x: x, z: z, rot: trainGroup.rotation.clone() });
+  const maxHistory = (trainCars.length + 5) * 20;
+  if(STATE.trail.length > maxHistory) STATE.trail.pop();
+  
+  trainCars.forEach((car, i) => {
+    const lag = (i + 1) * 18; 
+    if (STATE.trail[lag]) {
+      car.mesh.position.copy(STATE.trail[lag]);
+      car.mesh.position.y = 0; // Keep grounded
+      car.mesh.rotation.copy(STATE.trail[lag].rot);
+    }
+  });
+
+  // 4. Camera Follow (High Angle)
+  const cx = Math.cos(angle - 0.5) * (newRad + 25);
+  const cz = Math.sin(angle - 0.5) * (newRad + 25);
+  camera.position.x = THREE.MathUtils.lerp(camera.position.x, cx, 0.05);
+  camera.position.z = THREE.MathUtils.lerp(camera.position.z, cz, 0.05);
+  camera.position.y = THREE.MathUtils.lerp(camera.position.y, 35, 0.05);
+  camera.lookAt(trainGroup.position);
+
+  // 5. Collision/Interaction
+  for (let i = STATE.entities.length - 1; i >= 0; i--) {
+    const ent = STATE.entities[i];
+    let dist = Math.abs((STATE.progress * Math.PI * 2) % (Math.PI*2) - (ent.userData.angle % (Math.PI*2)));
+    if(dist > Math.PI) dist = (Math.PI*2) - dist; 
+    
+    // Hit Threshold
+    if (dist < 0.1 && ent.userData.trackIdx === STATE.currentTrack) {
+      collectStakeholder(ent, i);
+    }
+  }
+}
+
+function collectStakeholder(obj, index) {
+  const p = obj.userData.persona;
+  
+  // Log thoughts
+  log(`"${p.quote}"`, `${p.role} ${p.name}`, p.type);
+  
+  // Add to train
+  addCar(p.type);
+  
+  // FX: Boarding Animation (Shrink and move to train)
+  // For simplicity in this loop, we just delete and spawn car.
+  scene.remove(obj);
+  STATE.entities.splice(index, 1);
+  
+  // Speed Boost
+  STATE.speedMod += 0.02;
+  document.getElementById('speed-disp').innerText = STATE.speedMod.toFixed(2) + 'x';
+  document.getElementById('score-disp').innerText = STATE.genome.length + " STAKEHOLDERS";
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+  updatePhysics();
+  
+  if(Math.random() < 0.02) spawnEntity();
+  
+  // Idle Animations
+  STATE.entities.forEach(e => {
+    e.rotation.y += 0.02;
+    e.position.y = Math.abs(Math.sin(Date.now()*0.003))*0.5; // Bobbing
+  });
+  
+  renderer.render(scene, camera);
+}
+
+// --- UI HANDLERS ---
+
+function setupControls() {
+  document.querySelectorAll('.track-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      document.querySelectorAll('.track-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const idx = parseInt(btn.dataset.track);
+      STATE.currentTrack = idx;
+      
+      const names = ["CARE", "GROWTH", "TRUTH", "ACTION"];
+      log(`Switched to ${names[idx]} Framework`, "System");
+    });
+  });
+  
+  document.getElementById('genome-tape').addEventListener('click', generateTicket);
+}
+
+function log(msg, author="System", type="N") {
+  const box = document.getElementById('sys-log');
+  const div = document.createElement('div');
+  div.className = 'log-msg';
+  
+  let color = "#aaa";
+  if(type === 'C') color = "var(--c-care)";
+  if(type === 'G') color = "var(--c-growth)";
+  if(type === 'T') color = "var(--c-truth)";
+  if(type === 'A') color = "var(--c-action)";
+  
+  div.style.borderLeftColor = color;
+  div.innerHTML = `<b style="color:${color}">${author}</b> ${msg}`;
+  
+  box.prepend(div);
+  if(box.children.length > 5) box.lastChild.remove();
+}
+
+function updateGenomeHUD(type) {
+  const tape = document.getElementById('genome-tape');
+  const div = document.createElement('div');
+  div.className = `base-pair ${type}`;
+  tape.appendChild(div);
+  if (tape.children.length > 50) tape.firstChild.remove();
+  STATE.genome.push(type);
+}
+
+function resetSim() {
+  STATE.genome = [];
+  STATE.trail = [];
+  STATE.speedMod = 1.0;
+  STATE.entities.forEach(e => scene.remove(e));
+  STATE.entities = [];
+  trainCars.forEach(c => scene.remove(c.mesh));
+  trainCars = [];
+  
+  document.getElementById('genome-tape').innerHTML = '';
+  document.getElementById('score-disp').innerText = "0 STAKEHOLDERS";
+  
+  // Re-add start car
+  addCar(null);
+  
+  log("Simulation Reset.", "System");
+}
+
+function showHelp() {
+  document.getElementById('help-modal').classList.add('visible');
+}
+
+function closeModals() {
+  document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('visible'));
+}
+
+function generateTicket() {
+  const cvs = document.getElementById('ticket-canvas');
+  const ctx = cvs.getContext('2d');
+  cvs.width = 600; cvs.height = 300;
+  
+  // Dark BG
+  ctx.fillStyle = '#05080a'; ctx.fillRect(0,0,600,300);
+  
+  // Grid
+  ctx.strokeStyle = '#222'; ctx.lineWidth = 1;
+  for(let i=0;i<600;i+=20) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,300); ctx.stroke(); }
+  
+  // Text
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 24px Courier New';
+  ctx.fillText(`ETHNOME #${Math.floor(Math.random()*9999)}`, 25, 50);
+  
+  ctx.font = '14px Courier New'; ctx.fillStyle = '#888';
+  ctx.fillText(`STAKEHOLDERS: ${STATE.genome.length}`, 25, 80);
+  ctx.fillText(`DATE: ${new Date().toLocaleDateString()}`, 25, 100);
+  
+  // Calculate Dominant Vibe
+  const counts = {C:0, G:0, T:0, A:0};
+  STATE.genome.forEach(g => counts[g]++);
+  let max = 0; let vibe = "NEUTRAL";
+  for(let k in counts) { if(counts[k]>max) { max=counts[k]; vibe=k; } }
+  
+  const map = {C:"CARETAKER", G:"ACCELERATIONIST", T:"OBSERVER", A:"INTERVENTIONIST"};
+  ctx.fillStyle = '#00f0ff';
+  ctx.fillText(`ARCHETYPE: ${map[vibe] || "BALANCED"}`, 300, 80);
+
+  // Bars
+  const barW = 550 / Math.max(10, STATE.genome.length);
+  STATE.genome.forEach((base, i) => {
+    let col = '#555';
+    if(base === 'A') col = '#ff3355'; if(base === 'C') col = '#00f0ff';
+    if(base === 'G') col = '#00ff88'; if(base === 'T') col = '#ffcc00';
+    ctx.fillStyle = col; 
+    ctx.fillRect(25 + i*barW, 140, Math.max(1, barW-1), 100);
+  });
+  
+  ctx.fillStyle = '#444'; ctx.font = '12px Courier New';
+  ctx.fillText("GENERATED BY ETHNOME SIMULATOR", 25, 280);
+  
+  document.getElementById('ticket-modal').classList.add('visible');
+}
+
+function onResize() {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+// Start
+window.onload = init;
+</script>
+</body>
+</html>
