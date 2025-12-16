@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>🧬 Ethnome: Thick Description Simulator</title>
+  
+  <!-- THREE.JS CORE - r128 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+  <style>
+    :root {
+      --bg: #05080a;
+      --panel: rgba(10, 15, 20, 0.95);
+      --accent: #00f0ff;
+      
+      /* Ethical Tracks */
+      --c-care: #00f0ff;    /* C - Care/Nursing */
+      --c-growth: #00ff88;  /* G - Growth/Business */
+      --c-truth: #ffcc00;   /* T - Truth/Science */
+      --c-action: #ff3355;  /* A - Action/Policy */
+      
+      --font-mono: "SF Mono", "Courier New", monospace;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    body {
+      margin: 0; overflow: hidden; background: var(--bg);
+      font-family: var(--font-mono); color: #e0e0e0;
+      user-select: none; -webkit-tap-highlight-color: transparent;
+    }
+
+    /* --- LAYOUT --- */
+    #ui-layer {
+      position: absolute; inset: 0; pointer-events: none;
+      display: flex; flex-direction: column; justify-content: space-between;
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+      z-index: 10;
+    }
+
+    /* TOP BAR */
+    .top-hud {
+      pointer-events: auto;
+      background: linear-gradient(180deg, #000 0%, rgba(0,0,0,0.8) 80%, transparent 100%);
+      padding: 16px; display: flex; flex-direction: column; gap: 12px;
+    }
+    
+    .header-row { display: flex; justify-content: space-between; align-items: flex-start; }
+    
+    .title-block h1 { 
+      margin: 0; font-size: 16px; font-weight: 800; letter-spacing: 1px; color: #fff; 
+      text-transform: uppercase; font-family: var(--font-sans);
+    }
+    .title-block span { font-size: 10px; color: #889; text-transform: uppercase; display: block; margin-top: 4px; }
+
+    .tool-btns { display: flex; gap: 8px; }
+    .mini-btn {
+      background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+      color: #aaa; padding: 6px 10px; border-radius: 4px; font-size: 10px; cursor: pointer;
+      font-family: inherit; transition: all 0.2s; text-transform: uppercase; font-weight: 700;
+    }
+    .mini-btn:hover { background: #fff; color: #000; }
+
+    /* GENOME TAPE */
+    #genome-tape {
+      display: flex; gap: 2px; height: 16px; width: 100%;
+      background: rgba(255,255,255,0.05); border-radius: 2px;
+      overflow: hidden; cursor: pointer; border: 1px solid rgba(255,255,255,0.1);
+      position: relative;
+    }
+    .base-pair { flex: 1; height: 100%; opacity: 0.9; position: relative; }
+    .base-pair::after {
+      content: ''; position: absolute; inset: 0; 
+      background: linear-gradient(180deg, rgba(255,255,255,0.2), transparent);
+    }
+    .base-pair.C { background: var(--c-care); }
+    .base-pair.G { background: var(--c-growth); }
+    .base-pair.T { background: var(--c-truth); }
+    .base-pair.A { background: var(--c-action); }
+
+    /* NARRATIVE CARD (The "Script") */
+    #narrative-card {
+      position: absolute; top: 110px; left: 50%; transform: translateX(-50%);
+      width: 90%; max-width: 500px;
+      background: rgba(10, 15, 20, 0.95);
+      border: 1px solid #444; border-left: 4px solid #fff;
+      border-radius: 4px; padding: 16px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+      display: none; pointer-events: auto;
+      backdrop-filter: blur(8px);
+      transition: opacity 0.3s;
+    }
+    #narrative-card.visible { display: block; animation: slideDown 0.4s ease-out; }
+    @keyframes slideDown { from { opacity: 0; transform: translate(-50%, -20px); } to { opacity: 1; transform: translate(-50%, 0); } }
+
+    .card-header { display: flex; justify-content: space-between; margin-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px;}
+    .card-role { font-size: 10px; text-transform: uppercase; letter-spacing: 2px; font-weight: 700; color: #889; }
+    .card-name { font-size: 14px; font-weight: 700; color: #fff; font-family: var(--font-sans); }
+    
+    .card-context { font-size: 12px; color: #aaa; line-height: 1.5; margin-bottom: 12px; font-style: italic; }
+    .card-quote { 
+      font-size: 15px; color: #fff; line-height: 1.4; font-weight: 600; 
+      padding-left: 12px; border-left: 2px solid var(--accent); margin-bottom: 12px;
+    }
+    .card-actions { display: flex; gap: 10px; font-size: 10px; color: #666; justify-content: flex-end; }
+    
+    /* CONTROLS */
+    .controls-area {
+      pointer-events: auto; padding: 20px;
+      background: linear-gradient(0deg, #000 20%, rgba(0,0,0,0.8) 100%);
+      display: flex; flex-direction: column; gap: 12px; align-items: center;
+    }
+
+    .track-switcher {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+      width: 100%; max-width: 600px;
+    }
+
+    .track-btn {
+      background: rgba(30,35,40,0.8);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px; height: 64px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      color: #fff; cursor: pointer; position: relative; overflow: hidden;
+      transition: all 0.2s ease;
+    }
+    .track-btn span { font-size: 20px; font-weight: 900; margin-bottom: 4px; }
+    .track-btn small { font-size: 8px; opacity: 0.6; text-transform: uppercase; letter-spacing: 1px; }
+    
+    .track-btn.active { transform: translateY(-4px); box-shadow: 0 0 20px rgba(0,0,0,0.6); border-width: 2px; background: rgba(50,50,60,0.9); }
+
+    /* COLORS */
+    .track-btn[data-track="0"] { border-color: var(--c-care); color: var(--c-care); }
+    .track-btn[data-track="0"].active { background: rgba(0, 240, 255, 0.1); box-shadow: 0 0 30px var(--c-care); }
+    
+    .track-btn[data-track="1"] { border-color: var(--c-growth); color: var(--c-growth); }
+    .track-btn[data-track="1"].active { background: rgba(0, 255, 136, 0.1); box-shadow: 0 0 30px var(--c-growth); }
+    
+    .track-btn[data-track="2"] { border-color: var(--c-truth); color: var(--c-truth); }
+    .track-btn[data-track="2"].active { background: rgba(255, 204, 0, 0.1); box-shadow: 0 0 30px var(--c-truth); }
+    
+    .track-btn[data-track="3"] { border-color: var(--c-action); color: var(--c-action); }
+    .track-btn[data-track="3"].active { background: rgba(255, 51, 85, 0.1); box-shadow: 0 0 30px var(--c-action); }
+
+    /* MODALS */
+    .modal-overlay {
+      position: fixed; inset: 0; z-index: 100;
+      background: rgba(0,0,0,0.9); backdrop-filter: blur(8px);
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; pointer-events: none; transition: opacity 0.3s;
+    }
+    .modal-overlay.visible { opacity: 1; pointer-events: auto; }
+    
+    .modal-box {
+      background: #111; border: 1px solid #333; padding: 32px;
+      border-radius: 12px; width: 90%; max-width: 480px;
+      box-shadow: 0 20px 60px #000; color: #ccc;
+    }
+    .modal-box h2 { margin: 0 0 16px; color: #fff; font-size: 20px; font-family: var(--font-sans); text-transform: uppercase; letter-spacing: 1px;}
+    .modal-box p { font-size: 13px; line-height: 1.6; margin-bottom: 16px; }
+    .modal-box ul { padding-left: 20px; font-size: 13px; line-height: 1.6; margin-bottom: 24px; }
+    .modal-box li { margin-bottom: 8px; }
+    
+    .ticket canvas { width: 100%; height: auto; border: 1px solid #222; margin: 20px 0; border-radius: 4px; }
+    
+    .action-btn { 
+      background: #fff; color: #000; border: none; padding: 14px 24px; width: 100%;
+      border-radius: 4px; cursor: pointer; font-weight: 800; font-size: 12px; letter-spacing: 2px;
+      text-transform: uppercase; transition: transform 0.1s;
+    }
+    .action-btn:active { transform: scale(0.98); }
+
+    /* LOADER */
+    #loader {
+      position: fixed; inset: 0; background: #000; z-index: 9999;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      transition: opacity 0.5s;
+    }
+    .spinner {
+      width: 40px; height: 40px; border: 3px solid rgba(255,255,255,0.1);
+      border-top-color: var(--accent); border-radius: 50%;
+      animation: spin 1s linear infinite; margin-bottom: 16px;
+    }
+    #error-msg { color: #f35; font-size: 12px; margin-top: 10px; display: none; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+  <div id="canvas-container" style="position:fixed; inset:0;"></div>
+
+  <div id="ui-layer">
+    <div class="top-hud">
+      <div class="header-row">
+        <div class="title-block">
+          <h1>Ethnome Simulator</h1>
+          <span>Engineering Ethics Workbench v3.0</span>
+        </div>
+        <div class="tool-btns">
+          <button class="mini-btn" onclick="showHelp()">MISSION</button>
+          <button class="mini-btn" onclick="resetSim()">RESET</button>
+        </div>
+      </div>
+      
+      <div id="genome-tape" title="Download Vibe Ticket"></div>
+      
+      <div class="header-row" style="opacity: 0.6; font-size: 10px; margin-top: 4px;">
+        <span>VIBE TAPE (TAP TO DOWNLOAD)</span>
+        <div>
+          <span id="speed-disp" style="margin-right: 10px">1.0x</span>
+          <span id="score-disp">0 INTEGRATED</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Narrative Card Replaces Simple Log -->
+    <div id="narrative-card">
+      <div class="card-header">
+        <span class="card-role" id="card-role">ROLE</span>
+        <span class="card-name" id="card-name">Name</span>
+      </div>
+      <div class="card-context" id="card-context">Context goes here...</div>
+      <div class="card-quote" id="card-quote">"Quote goes here..."</div>
+      <div class="card-actions">
+        <span>STAY ON TRACK TO INTEGRATE</span>
+        <span>SWITCH TRACK TO BYPASS</span>
+      </div>
+    </div>
+
+    <div class="controls-area">
+      <div style="font-size:10px; opacity:0.5; text-transform:uppercase; letter-spacing:2px; margin-bottom:6px;">Select Ethical Framework</div>
+      <div class="track-switcher">
+        <div class="track-btn active" data-track="0"><span>C</span><small>CARE</small></div>
+        <div class="track-btn" data-track="1"><span>G</span><small>GROWTH</small></div>
+        <div class="track-btn" data-track="2"><span>T</span><small>TRUTH</small></div>
+        <div class="track-btn" data-track="3"><span>A</span><small>ACTION</small></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HELP MODAL -->
+  <div id="help-modal" class="modal-overlay">
+    <div class="modal-box">
+      <h2>Operational Briefing</h2>
+      <p>You are the operator of the <strong>Cas9 Narrative Engine</strong>. Your task is to construct an ethical genome by integrating stakeholder perspectives.</p>
+      <p><strong>Protocol:</strong></p>
+      <ul>
+        <li><strong>The Train:</strong> Represents your active policy or technology deployment.</li>
+        <li><strong>Stakeholders:</strong> When approaching a person, the engine will <strong>SLOW DOWN</strong>. Listen to their statement (TTS).</li>
+        <li><strong>Decision Point:</strong> 
+          <br>• <strong>Stay on Track:</strong> Integrate their perspective (Collect).
+          <br>• <strong>Switch Track:</strong> Bypass them (Ignore/Avoid).
+        </li>
+      </ul>
+      <p style="font-style: italic; opacity: 0.7;">"Attention through context, not just to it."</p>
+      <button class="action-btn" onclick="closeModals()">INITIALIZE</button>
+    </div>
+  </div>
+
+  <!-- TICKET MODAL -->
+  <div id="ticket-modal" class="modal-overlay">
+    <div class="modal-box ticket">
+      <div style="color:#888; font-size:10px; letter-spacing:2px; margin-bottom:8px; font-weight:bold;">SESSION DEBRIEF</div>
+      <h2 style="font-size:22px; color: #fff;">ETHNOME MANIFEST</h2>
+      <canvas id="ticket-canvas"></canvas>
+      <div style="font-size:11px; color:#666; margin-bottom:20px;">Save this manifest to your research log.</div>
+      <button class="action-btn" onclick="closeModals()">RESUME MISSION</button>
+    </div>
+  </div>
+
+  <!-- LOADER -->
+  <div id="loader">
+    <div class="spinner"></div>
+    <div style="font-size: 10px; color: #666; letter-spacing: 2px;">LOADING PHYSICS ENGINE</div>
+    <div id="error-msg"></div>
+  </div>
+
+<script>
+/**
+ * DNA RAILWAY: THICK DESCRIPTION EDITION
+ * * "Hamlet's Napkin": Entities are thick descriptions (Role, Context, Voice).
+ * "Cybernetics": The prompt/track is a control loop.
+ */
+
+// --- THICK DESCRIPTION DATA ---
+const PERSONAS = [
+  // CARE (C) - Focus on individual, safety, nursing
+  { type: 'C', role: "Head Nurse", name: "Sarah Jenkins", context: "Field hospital running on backup generators. 40 patients critical.", quote: "If you cut the power to reroute the grid, my ventilators stop. People die in minutes." },
+  { type: 'C', role: "Single Father", name: "David Al-Fayed", context: "Holding a rejection letter from the insurance algorithm.", quote: "My daughter isn't an edge case. She's seven. Look at her, not the spreadsheet." },
+  { type: 'C', role: "Elder", name: "Maria Vega", context: "Sitting on the porch of a home slated for demolition.", quote: "This soil holds the bones of my ancestors. Efficiency isn't the only value." },
+  
+  // GROWTH (G) - Focus on scale, economy, future
+  { type: 'G', role: "Venture Lead", name: "Elena Kross", context: "Boardroom, Q3 earnings call imminent. Burn rate critical.", quote: "If we don't scale now, the tech dies in the lab. We need to break a few eggs." },
+  { type: 'G', role: "City Planner", name: "Sam Lee", context: "Looking at a map of gridlocked traffic.", quote: "A thousand people are stuck in traffic right now. The new highway liberates hours of human life." },
+  { type: 'G', role: "Supply Chain Mgr", name: "Kaito Tanaka", context: "Warehouse floor, automated robots idle.", quote: "Optimization isn't greed. It's the only way to feed ten billion people." },
+
+  // TRUTH (T) - Focus on data, history, transparency
+  { type: 'T', role: "Lead Researcher", name: "Dr. Chen", context: "Reviewing anomalous data that delays launch.", quote: "The p-value is significant. We cannot ship until we understand the anomaly. Data doesn't lie." },
+  { type: 'T', role: "Investigative Journalist", name: "Lois Lane", context: "Holding a leaked memo.", quote: "The public has a right to know the failure rate. Transparency hurts, but secrets kill." },
+  { type: 'T', role: "Historian", name: "Alice Vance", context: "Dusty archives, pointing at a repeated cycle.", quote: "We tried this policy in '84. It failed then. Why do you think it will work now?" },
+
+  // ACTION (A) - Focus on speed, intervention, results
+  { type: 'A', role: "First Responder", name: "Lt. Dan Miller", context: "Flood waters rising. Chopper fuel low.", quote: "We don't have time for a committee meeting! Grab the rope or drown!" },
+  { type: 'A', role: "Climate Activist", name: "Maya S.", context: "Chained to the heavy machinery.", quote: "Talking is over. Immediate cessation is the only moral choice left." },
+  { type: 'A', role: "Trauma Surgeon", name: "Dr. Banks", context: "ER bay 1. Multiple casualties.", quote: "To save the patient, I have to cut. Hesitation is the enemy." }
+];
+
+// --- CONFIG ---
+const CONFIG = {
+  tracks: [
+    { radius: 18, color: 0x00f0ff, name: "Care" },
+    { radius: 26, color: 0x00ff88, name: "Growth" }, 
+    { radius: 34, color: 0xffcc00, name: "Truth" },
+    { radius: 42, color: 0xff3355, name: "Action" }
+  ],
+  baseSpeed: 0.006,
+  decisionDistance: 0.15, // Radians where decision mode triggers
+};
+
+// --- STATE ---
+const STATE = {
+  currentTrack: 0, 
+  genome: [], 
+  progress: 0, 
+  speedMod: 1.0,
+  entities: [],
+  trail: [],
+  inDecisionMode: false,
+  activePersona: null
+};
+
+// --- GLOBALS ---
+let scene, camera, renderer, trainGroup, trainHead;
+let trainCars = [];
+let gridGroup;
+let synth = window.speechSynthesis;
+
+// --- INIT ---
+function init() {
+  try {
+    const container = document.getElementById('canvas-container');
+    if (typeof THREE === 'undefined') throw new Error("Three.js not loaded");
+
+    // Scene
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x05080a);
+    scene.fog = new THREE.FogExp2(0x05080a, 0.015);
+
+    // Camera
+    camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 1000);
+    
+    // Renderer
+    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    container.appendChild(renderer.domElement);
+
+    // Light
+    const ambient = new THREE.AmbientLight(0xffffff, 0.5); 
+    scene.add(ambient);
+    const sun = new THREE.DirectionalLight(0xffffff, 1.2);
+    sun.position.set(20, 50, 20);
+    sun.castShadow = true;
+    scene.add(sun);
+
+    // World
+    buildGrid();
+    buildTracks();
+    buildTrain();
+    
+    // Events
+    window.addEventListener('resize', onResize);
+    setupControls();
+    
+    // Start
+    animate();
+    
+    // Cleanup Loader
+    const loader = document.getElementById('loader');
+    if(loader) {
+      loader.style.opacity = 0;
+      setTimeout(() => loader.remove(), 500);
+    }
+
+  } catch (err) {
+    document.getElementById('error-msg').style.display='block';
+    document.getElementById('error-msg').innerText = "INIT FAILED: " + err.message;
+  }
+}
+
+// --- VISUALS ---
+
+function buildGrid() {
+  gridGroup = new THREE.Group();
+  const geo = new THREE.BoxGeometry(1, 1, 1);
+  const mat = new THREE.MeshLambertMaterial({ color: 0x1a2a3a, transparent: true, opacity: 0.6 });
+  
+  for(let x=-15; x<=15; x++) {
+    for(let z=-15; z<=15; z++) {
+      if(Math.sqrt(x*x + z*z) < 6) continue; 
+      if(Math.random() > 0.4) continue; 
+      
+      const h = 1 + Math.random() * 8;
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.set(x*3, h/2 - 5, z*3);
+      mesh.scale.set(2, h, 2);
+      gridGroup.add(mesh);
+    }
+  }
+  scene.add(gridGroup);
+}
+
+function buildTracks() {
+  CONFIG.tracks.forEach((t) => {
+    // Ring
+    const curve = new THREE.EllipseCurve(0, 0, t.radius, t.radius, 0, 2 * Math.PI);
+    const pts = curve.getPoints(128);
+    const geo = new THREE.BufferGeometry().setFromPoints(pts.map(p => new THREE.Vector3(p.x, 0, p.y)));
+    const mat = new THREE.LineBasicMaterial({ color: t.color, opacity: 0.3, transparent: true });
+    scene.add(new THREE.Line(geo, mat));
+    
+    // Ties
+    const sleeperGeo = new THREE.BoxGeometry(0.6, 0.1, 1.8);
+    const sleeperMat = new THREE.MeshBasicMaterial({ color: t.color, opacity: 0.2, transparent:true });
+    for(let j=0; j<40; j++) {
+      const angle = (j/40) * Math.PI * 2;
+      const m = new THREE.Mesh(sleeperGeo, sleeperMat);
+      m.position.set(Math.cos(angle)*t.radius, -0.1, Math.sin(angle)*t.radius);
+      m.lookAt(0,0,0);
+      scene.add(m);
+    }
+  });
+}
+
+function buildTrain() {
+  trainGroup = new THREE.Group();
+  
+  const matBody = new THREE.MeshStandardMaterial({ color: 0x222, roughness: 0.4, metalness: 0.9 });
+  const matDetail = new THREE.MeshStandardMaterial({ color: 0x111, roughness: 0.8 });
+  const matGlow = new THREE.MeshBasicMaterial({ color: 0x00f0ff });
+
+  // Chassis
+  const chassis = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.6, 7), matDetail);
+  chassis.position.y = 0.6;
+  trainGroup.add(chassis);
+
+  // Engine Barrel
+  const boiler = new THREE.Mesh(new THREE.CylinderGeometry(1.4, 1.4, 4.5, 16), matBody);
+  boiler.rotation.x = Math.PI / 2;
+  boiler.position.set(0, 2.0, 0.5);
+  trainGroup.add(boiler);
+
+  // Cabin
+  const cabin = new THREE.Mesh(new THREE.BoxGeometry(3, 3, 2.5), matBody);
+  cabin.position.set(0, 2.4, -2.2);
+  trainGroup.add(cabin);
+  
+  // Cowcatcher
+  const catchGeo = new THREE.ConeGeometry(1.6, 1.5, 4);
+  const catcher = new THREE.Mesh(catchGeo, matDetail);
+  catcher.rotation.x = -Math.PI/2; 
+  catcher.rotation.z = Math.PI/4;
+  catcher.position.set(0, 0.8, 3.8);
+  trainGroup.add(catcher);
+
+  // Wheels (Visual only)
+  const wGeo = new THREE.CylinderGeometry(0.8, 0.8, 0.4, 12);
+  const wMat = new THREE.MeshStandardMaterial({color:0x333, metalness:0.8});
+  [ [-1.8, 1.5], [1.8, 1.5], [-1.8, -1.0], [1.8, -1.0] ].forEach(p => {
+    const w = new THREE.Mesh(wGeo, wMat);
+    w.rotation.z = Math.PI/2;
+    w.position.set(p[0], 0.8, p[1]);
+    trainGroup.add(w);
+  });
+
+  // Light Beam
+  const beamGeo = new THREE.ConeGeometry(3, 12, 32, 1, true);
+  const beamMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff, transparent: true, opacity: 0.15, side: THREE.DoubleSide, blending: THREE.AdditiveBlending });
+  const beam = new THREE.Mesh(beamGeo, beamMat);
+  beam.rotation.x = -Math.PI / 2;
+  beam.position.set(0, 0, 8);
+  trainGroup.add(beam);
+
+  scene.add(trainGroup);
+  
+  // Engine Head Reference
+  trainHead = trainGroup;
+  
+  addCar(null); // Start Block
+}
+
+function addCar(type) {
+  let color = 0x333333;
+  if (type === 'A') color = 0xff3355;
+  if (type === 'C') color = 0x00f0ff;
+  if (type === 'G') color = 0x00ff88;
+  if (type === 'T') color = 0xffcc00;
+
+  const grp = new THREE.Group();
+  
+  const box = new THREE.Mesh(
+    new THREE.BoxGeometry(2.4, 1.8, 3.2), 
+    new THREE.MeshStandardMaterial({ color: color, roughness: 0.4, metalness: 0.5 })
+  );
+  box.position.y = 1.4;
+  grp.add(box);
+  
+  // Link
+  const link = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.2, 1.2), new THREE.MeshBasicMaterial({color:0x666}));
+  link.position.set(0, 1, 2.0);
+  grp.add(link);
+
+  trainCars.push({ mesh: grp, type: type });
+  scene.add(grp);
+  
+  if(type) updateGenomeHUD(type);
+}
+
+// --- ENTITY SPAWNING ---
+
+function spawnEntity() {
+  if (STATE.entities.length > 6) return; 
+  
+  const trackIdx = Math.floor(Math.random() * 4);
+  const track = CONFIG.tracks[trackIdx];
+  const angle = (STATE.progress * Math.PI * 2) + 0.8 + Math.random() * 2.0;
+  
+  // Select Persona
+  const possible = STAKEHOLDERS.filter(s => s.type === ['C','G','T','A'][trackIdx]);
+  const persona = possible[Math.floor(Math.random()*possible.length)];
+
+  // Avatar Construction
+  const grp = new THREE.Group();
+  
+  // Base Ring
+  const ring = new THREE.Mesh(
+    new THREE.TorusGeometry(0.8, 0.05, 4, 24),
+    new THREE.MeshBasicMaterial({ color: track.color })
+  );
+  ring.rotation.x = Math.PI/2;
+  ring.position.y = 0.1;
+  grp.add(ring);
+  
+  // Humanoid Shape (Abstract)
+  const body = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.2, 0.4, 1.4, 8),
+    new THREE.MeshLambertMaterial({ color: track.color, emissive: track.color, emissiveIntensity: 0.2 })
+  );
+  body.position.y = 0.7;
+  grp.add(body);
+  
+  const head = new THREE.Mesh(
+    new THREE.SphereGeometry(0.35, 12, 12),
+    new THREE.MeshBasicMaterial({ color: 0xffffff })
+  );
+  head.position.y = 1.6;
+  grp.add(head);
+
+  // Position
+  grp.position.set(Math.cos(angle)*track.radius, 0, Math.sin(angle)*track.radius);
+  grp.userData = { angle: angle, trackIdx: trackIdx, persona: persona, spoken: false };
+  
+  scene.add(grp);
+  STATE.entities.push(grp);
+}
+
+// --- LOGIC LOOP ---
+
+function updatePhysics() {
+  const t = CONFIG.tracks[STATE.currentTrack];
+  
+  // 1. Check for Decision Mode (Slow Down)
+  let targetSpeed = CONFIG.baseSpeed * STATE.speedMod;
+  STATE.inDecisionMode = false;
+  let nearestEnt = null;
+  let nearestDist = 999;
+
+  const currentAngle = (STATE.progress * Math.PI * 2) % (Math.PI*2);
+
+  STATE.entities.forEach(ent => {
+    let dist = ent.userData.angle - currentAngle;
+    if(dist < 0) dist += Math.PI*2;
+    
+    // If entity is on OUR track and AHEAD within range
+    if(ent.userData.trackIdx === STATE.currentTrack && dist < CONFIG.decisionDistance + 0.3 && dist > 0.05) {
+      STATE.inDecisionMode = true;
+      nearestEnt = ent;
+      nearestDist = dist;
+    }
+  });
+
+  if (STATE.inDecisionMode) {
+    targetSpeed *= 0.15; // Slow to crawl
+    if (nearestEnt && !nearestEnt.userData.spoken) {
+      triggerDialogue(nearestEnt.userData.persona);
+      nearestEnt.userData.spoken = true;
+    }
+  } else {
+    // Hide card if we moved past
+    document.getElementById('narrative-card').classList.remove('visible');
+  }
+
+  // 2. Move Train
+  // Smoothly interpolate speed
+  const dt = 0.016;
+  const currentSpeed = (STATE.lastSpeed || targetSpeed);
+  const nextSpeed = THREE.MathUtils.lerp(currentSpeed, targetSpeed, 0.05);
+  STATE.lastSpeed = nextSpeed;
+  
+  STATE.progress += nextSpeed * dt;
+  if(STATE.progress > 1) STATE.progress -= 1;
+  
+  // 3. Lane Switching Animation
+  const angle = STATE.progress * Math.PI * 2;
+  const currentX = trainGroup.position.x;
+  const currentZ = trainGroup.position.z;
+  const currentRad = Math.sqrt(currentX*currentX + currentZ*currentZ) || t.radius;
+  const newRad = THREE.MathUtils.lerp(currentRad, t.radius, 0.08);
+  
+  const x = Math.cos(angle) * newRad;
+  const z = Math.sin(angle) * newRad;
+  trainGroup.position.set(x, 0, z);
+  
+  const lx = Math.cos(angle + 0.1) * newRad;
+  const lz = Math.sin(angle + 0.1) * newRad;
+  trainGroup.lookAt(lx, 0, lz);
+  
+  // 4. Snake Cars
+  STATE.trail.unshift({ x: x, z: z, rot: trainGroup.rotation.clone() });
+  const maxHistory = (trainCars.length + 5) * 25;
+  if(STATE.trail.length > maxHistory) STATE.trail.pop();
+  
+  trainCars.forEach((car, i) => {
+    const lag = (i + 1) * 22; 
+    if (STATE.trail[lag]) {
+      car.mesh.position.copy(STATE.trail[lag]);
+      car.mesh.position.y = 0;
+      car.mesh.rotation.copy(STATE.trail[lag].rot);
+    }
+  });
+
+  // 5. Camera
+  const camZoom = STATE.inDecisionMode ? 15 : 35; // Zoom in for drama
+  const camHeight = STATE.inDecisionMode ? 8 : 35;
+  
+  const cx = Math.cos(angle - 0.4) * (newRad + 25);
+  const cz = Math.sin(angle - 0.4) * (newRad + 25);
+  
+  camera.position.x = THREE.MathUtils.lerp(camera.position.x, cx, 0.02);
+  camera.position.z = THREE.MathUtils.lerp(camera.position.z, cz, 0.02);
+  camera.position.y = THREE.MathUtils.lerp(camera.position.y, camHeight, 0.02);
+  camera.lookAt(trainGroup.position);
+
+  // 6. Collision (Integration)
+  for (let i = STATE.entities.length - 1; i >= 0; i--) {
+    const ent = STATE.entities[i];
+    let dist = Math.abs((STATE.progress * Math.PI * 2) % (Math.PI*2) - (ent.userData.angle % (Math.PI*2)));
+    if(dist > Math.PI) dist = (Math.PI*2) - dist; 
+    
+    if (dist < 0.05 && ent.userData.trackIdx === STATE.currentTrack) {
+      integrateStakeholder(ent, i);
+    }
+  }
+}
+
+function triggerDialogue(p) {
+  const card = document.getElementById('narrative-card');
+  document.getElementById('card-role').innerText = p.role;
+  document.getElementById('card-role').style.color = CONFIG.tracks.find(t=>t.name[0]===p.type).color === 0x00f0ff ? '#00f0ff' : '#fff'; // simple tint
+  document.getElementById('card-name').innerText = p.name;
+  document.getElementById('card-context').innerText = p.context;
+  document.getElementById('card-quote').innerText = `"${p.quote}"`;
+  card.classList.add('visible');
+  
+  // TTS
+  if(synth) {
+    synth.cancel();
+    const utter = new SpeechSynthesisUtterance(p.quote);
+    utter.rate = 1.1;
+    utter.pitch = 1.0;
+    synth.speak(utter);
+  }
+}
+
+function integrateStakeholder(obj, index) {
+  const p = obj.userData.persona;
+  
+  // Update UI
+  document.getElementById('narrative-card').classList.remove('visible');
+  
+  // Log
+  const colors = { C: 'var(--c-care)', G: 'var(--c-growth)', T: 'var(--c-truth)', A: 'var(--c-action)' };
+  const typeName = { C: 'CARE', G: 'GROWTH', T: 'TRUTH', A: 'ACTION' };
+  
+  const box = document.getElementById('sys-log');
+  const div = document.createElement('div');
+  div.className = 'log-msg';
+  div.style.borderLeftColor = colors[p.type];
+  div.innerHTML = `<b style="color:${colors[p.type]}">${p.role} INTEGRATED</b> <i>"${p.quote}"</i>`;
+  box.prepend(div);
+  
+  // Add to train
+  addCar(p.type);
+  scene.remove(obj);
+  STATE.entities.splice(index, 1);
+  
+  // Speed
+  STATE.speedMod += 0.05;
+  const speedDisp = document.getElementById('speed-disp');
+  if(speedDisp) speedDisp.innerText = STATE.speedMod.toFixed(1) + 'x';
+  
+  const scoreDisp = document.getElementById('score-disp');
+  if(scoreDisp) scoreDisp.innerText = STATE.genome.length + " INTEGRATED";
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+  updatePhysics();
+  
+  if(Math.random() < 0.015) spawnEntity();
+  
+  STATE.entities.forEach(e => {
+    e.rotation.y += 0.02;
+    e.position.y = Math.abs(Math.sin(Date.now()*0.003))*0.5;
+  });
+  
+  renderer.render(scene, camera);
+}
+
+// --- UI ---
+
+function setupControls() {
+  document.querySelectorAll('.track-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      document.querySelectorAll('.track-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      STATE.currentTrack = parseInt(btn.dataset.track);
+    });
+  });
+  document.getElementById('genome-tape').addEventListener('click', generateTicket);
+}
+
+function updateGenomeHUD(type) {
+  const tape = document.getElementById('genome-tape');
+  const div = document.createElement('div');
+  div.className = `base-pair ${type}`;
+  tape.appendChild(div);
+  if (tape.children.length > 50) tape.firstChild.remove();
+  STATE.genome.push(type);
+}
+
+function resetSim() {
+  STATE.genome = [];
+  STATE.trail = [];
+  STATE.speedMod = 1.0;
+  STATE.entities.forEach(e => scene.remove(e));
+  STATE.entities = [];
+  trainCars.forEach(c => scene.remove(c.mesh));
+  trainCars = [];
+  
+  document.getElementById('genome-tape').innerHTML = '';
+  document.getElementById('score-disp').innerText = "0 STAKEHOLDERS";
+  document.getElementById('speed-disp').innerText = "1.0x";
+  document.getElementById('sys-log').innerHTML = '';
+  
+  addCar(null);
+}
+
+function showHelp() { document.getElementById('help-modal').classList.add('visible'); }
+function closeModals() { document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('visible')); }
+
+function generateTicket() {
+  const cvs = document.getElementById('ticket-canvas');
+  const ctx = cvs.getContext('2d');
+  cvs.width = 600; cvs.height = 350;
+  
+  ctx.fillStyle = '#05080a'; ctx.fillRect(0,0,600,350);
+  ctx.strokeStyle = '#222'; ctx.lineWidth = 1;
+  for(let i=0;i<600;i+=20) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,350); ctx.stroke(); }
+  
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 24px Courier New';
+  ctx.fillText(`ETHNOME MANIFEST #${Math.floor(Math.random()*999)}`, 25, 50);
+  
+  ctx.font = '14px Courier New'; ctx.fillStyle = '#888';
+  ctx.fillText(`STAKEHOLDERS INTEGRATED: ${STATE.genome.length}`, 25, 80);
+  ctx.fillText(`SESSION ID: ${Date.now().toString(36).toUpperCase()}`, 25, 100);
+  
+  // Calculate Vibe
+  const counts = {C:0, G:0, T:0, A:0};
+  STATE.genome.forEach(g => counts[g]++);
+  let max = -1; let vibe = "NEUTRAL";
+  for(let k in counts) { if(counts[k]>max) { max=counts[k]; vibe=k; } }
+  
+  const titles = {C:"CARETAKER", G:"BUILDER", T:"SCIENTIST", A:"COMMANDER"};
+  const descs = {
+    C: "You prioritize human safety above all metrics.",
+    G: "You believe expansion solves the scarcity problem.",
+    T: "You wait for certainty, even at the cost of speed.",
+    A: "You act decisively to mitigate immediate threats."
+  };
+  
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 18px Courier New';
+  ctx.fillText(`ARCHETYPE: ${titles[vibe] || "BALANCED"}`, 25, 150);
+  ctx.font = 'italic 12px Courier New'; ctx.fillStyle = '#aaa';
+  ctx.fillText(descs[vibe] || "You balance competing interests.", 25, 170);
+
+  // Genome
+  const barW = 550 / Math.max(10, STATE.genome.length);
+  STATE.genome.forEach((base, i) => {
+    let col = '#555';
+    if(base === 'A') col = '#ff3355'; if(base === 'C') col = '#00f0ff';
+    if(base === 'G') col = '#00ff88'; if(base === 'T') col = '#ffcc00';
+    ctx.fillStyle = col; 
+    ctx.fillRect(25 + i*barW, 200, Math.max(1, barW-1), 80);
+  });
+  
+  ctx.fillStyle = '#444'; ctx.font = '10px Courier New';
+  ctx.fillText("GENERATED BY CAS9 NARRATIVE ENGINE", 25, 320);
+  
+  document.getElementById('ticket-modal').classList.add('visible');
+}
+
+function onResize() {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+// Start
+window.onload = init;
+</script>
+</body>
+</html>
