@@ -1,0 +1,1445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>🧬 DNA Railway: Cas9 Simulator (Mobile+)</title>
+
+  <!-- THREE.JS CORE -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+  <style>
+    :root {
+      --bg: #020406;
+      --panel: rgba(6,10,14,0.86);
+      --panel2: rgba(0,0,0,0.92);
+      --text: #eaffff;
+      --dim: #6f8696;
+      --stroke: rgba(255,255,255,0.14);
+      --c-adenine: #ff3355; --c-cytosine: #00f0ff; --c-guanine: #00ff88; --c-thymine: #ffcc00;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --safe-top: env(safe-area-inset-top);
+      --safe-bottom: env(safe-area-inset-bottom);
+      --safe-left: env(safe-area-inset-left);
+      --safe-right: env(safe-area-inset-right);
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--mono);
+      touch-action: manipulation;
+    }
+
+    #canvas-container {
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+      background: radial-gradient(1200px 800px at 50% 45%, rgba(0,240,255,0.07), rgba(0,0,0,0.0) 55%), var(--bg);
+    }
+
+    /* HUD layer */
+    #ui {
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: calc(10px + var(--safe-top)) calc(10px + var(--safe-right)) calc(10px + var(--safe-bottom)) calc(10px + var(--safe-left));
+    }
+
+    /* Top bar */
+    .topbar {
+      pointer-events: auto;
+      background: linear-gradient(180deg, rgba(0,0,0,0.88), rgba(0,0,0,0.10));
+      border: 1px solid var(--stroke);
+      border-radius: 16px;
+      padding: 10px 12px;
+      backdrop-filter: blur(10px);
+    }
+
+    .row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .kpi {
+      display: flex;
+      gap: 12px;
+      align-items: baseline;
+      flex-wrap: wrap;
+    }
+
+    .kpi .label { font-size: 10px; letter-spacing: 1.6px; text-transform: uppercase; color: var(--dim); }
+    .kpi .val { font-size: 12px; font-weight: 800; }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--stroke);
+      background: rgba(10,14,20,0.64);
+      cursor: pointer;
+      user-select: none;
+      pointer-events: auto;
+    }
+
+    .pill b { font-size: 10px; letter-spacing: 1.2px; text-transform: uppercase; }
+    .pill small { font-size: 11px; opacity: 0.9; }
+
+    #genome-tape {
+      margin-top: 10px;
+      width: 100%;
+      height: 28px;
+      display: flex;
+      gap: 2px;
+      border-radius: 10px;
+      overflow: hidden;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--stroke);
+      cursor: pointer;
+      pointer-events: auto;
+    }
+
+    .bp { flex: 1; height: 100%; opacity: 0.92; min-width: 2px; }
+    .A { background: var(--c-adenine); }
+    .C { background: var(--c-cytosine); }
+    .G { background: var(--c-guanine); }
+    .T { background: var(--c-thymine); }
+
+    /* Bottom controls (mobile-first) */
+    .bottom {
+      pointer-events: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .switcher {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      background: var(--panel);
+      border: 1px solid var(--stroke);
+      border-radius: 18px;
+      padding: 10px;
+      backdrop-filter: blur(10px);
+    }
+
+    .track {
+      height: 70px;
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,0.16);
+      background: rgba(12,14,18,0.88);
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      user-select: none;
+      position: relative;
+      overflow: hidden;
+      touch-action: manipulation;
+    }
+
+    .track .big { font-size: 26px; font-weight: 900; line-height: 1; }
+    .track .sub { font-size: 10px; letter-spacing: 1.4px; text-transform: uppercase; opacity: 0.85; margin-top: 4px; }
+
+    .track.active {
+      transform: translateY(-1px);
+      box-shadow: 0 0 22px currentColor;
+      border-width: 2px;
+    }
+
+    .track[data-track="0"] { color: var(--c-cytosine); border-color: rgba(0,240,255,0.5); }
+    .track[data-track="1"] { color: var(--c-guanine); border-color: rgba(0,255,136,0.5); }
+    .track[data-track="2"] { color: var(--c-thymine); border-color: rgba(255,204,0,0.5); }
+    .track[data-track="3"] { color: var(--c-adenine); border-color: rgba(255,51,85,0.55); }
+
+    .hint {
+      font-size: 11px;
+      color: var(--dim);
+      letter-spacing: 0.2px;
+      padding: 10px 12px;
+      background: rgba(0,0,0,0.45);
+      border: 1px solid var(--stroke);
+      border-radius: 14px;
+      backdrop-filter: blur(10px);
+    }
+
+    /* System log */
+    #log {
+      position: fixed;
+      left: calc(10px + var(--safe-left));
+      right: calc(10px + var(--safe-right));
+      top: calc(98px + var(--safe-top));
+      z-index: 12;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column-reverse;
+      gap: 6px;
+      max-height: 160px;
+      overflow: hidden;
+    }
+
+    .msg {
+      font-size: 11px;
+      padding: 8px 10px;
+      background: rgba(0,0,0,0.62);
+      border: 1px solid rgba(255,255,255,0.10);
+      border-left: 3px solid rgba(255,255,255,0.22);
+      border-radius: 12px;
+      backdrop-filter: blur(10px);
+      text-shadow: 0 1px 2px rgba(0,0,0,0.9);
+      transform: translateY(6px);
+      animation: pop 180ms ease-out forwards;
+    }
+    @keyframes pop { to { transform: translateY(0px); } }
+
+    /* Modal (Ledger / Scenario / Export) */
+    .modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.92);
+      z-index: 100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: calc(14px + var(--safe-top)) calc(14px + var(--safe-right)) calc(14px + var(--safe-bottom)) calc(14px + var(--safe-left));
+    }
+
+    .card {
+      width: min(740px, 100%);
+      max-height: min(78vh, 680px);
+      overflow: hidden;
+      background: rgba(8,10,12,0.95);
+      border: 1px solid rgba(255,255,255,0.16);
+      border-radius: 18px;
+      box-shadow: 0 12px 50px rgba(0,0,0,0.6);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .card header {
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      border-bottom: 1px solid rgba(255,255,255,0.10);
+      background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.00));
+    }
+
+    .card header .title {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .card header .title b { font-size: 12px; letter-spacing: 1.4px; text-transform: uppercase; }
+    .card header .title small { font-size: 11px; color: var(--dim); }
+
+    .xbtn {
+      pointer-events: auto;
+      border: 1px solid rgba(255,255,255,0.18);
+      background: rgba(20,20,24,0.9);
+      color: #fff;
+      border-radius: 12px;
+      padding: 10px 12px;
+      cursor: pointer;
+      font-family: var(--mono);
+    }
+
+    .card .body {
+      padding: 12px 14px;
+      overflow: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .grid2 {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 12px;
+    }
+    @media (max-width: 820px) { .grid2 { grid-template-columns: 1fr; } }
+
+    .box {
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 14px;
+      padding: 10px;
+      background: rgba(0,0,0,0.35);
+    }
+
+    .box h3 { margin: 0 0 8px 0; font-size: 12px; letter-spacing: 1.2px; text-transform: uppercase; color: var(--dim); }
+
+    .ledger {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      font-size: 12px;
+    }
+
+    .event {
+      display: grid;
+      grid-template-columns: 86px 70px 1fr;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.10);
+      background: rgba(0,0,0,0.45);
+    }
+
+    .event .t { color: var(--dim); font-size: 11px; }
+    .event .k { font-weight: 800; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; }
+    .event .d { font-size: 12px; color: var(--text); }
+
+    .btnrow {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+
+    .btn {
+      border: 1px solid rgba(255,255,255,0.18);
+      background: rgba(16,18,22,0.92);
+      color: #fff;
+      padding: 12px 14px;
+      border-radius: 14px;
+      cursor: pointer;
+      font-family: var(--mono);
+      font-weight: 800;
+      letter-spacing: 0.2px;
+      user-select: none;
+    }
+    .btn.primary { background: rgba(0,255,136,0.92); color: #000; border-color: rgba(0,255,136,0.65); }
+
+    /* Loader */
+    #loader {
+      position: fixed; inset: 0; z-index: 200;
+      display: flex; align-items: center; justify-content: center;
+      background: #000;
+    }
+
+    .spinner {
+      width: 52px; height: 52px;
+      border-radius: 999px;
+      border: 4px solid rgba(0,255,136,0.20);
+      border-top-color: rgba(0,255,136,0.9);
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Tiny helpers */
+    .mono { font-family: var(--mono); }
+    .dim { color: var(--dim); }
+    .nowrap { white-space: nowrap; }
+  </style>
+</head>
+<body>
+
+  <div id="canvas-container"></div>
+
+  <div id="ui">
+    <div class="topbar">
+      <div class="row">
+        <div class="kpi">
+          <div><div class="label">Ethnome</div><div class="val" id="kpi-seq">0 BP</div></div>
+          <div><div class="label">Integrity</div><div class="val" id="kpi-int">100%</div></div>
+          <div><div class="label">Speed</div><div class="val" id="kpi-spd">1.00×</div></div>
+        </div>
+        <div class="row" style="gap:8px;">
+          <div class="pill" id="btn-ledger" title="Open the data ledger">
+            <b>Ledger</b><small class="nowrap" id="kpi-events">0</small>
+          </div>
+          <div class="pill" id="btn-export" title="Export ticket + JSON">
+            <b>Export</b><small>↗</small>
+          </div>
+        </div>
+      </div>
+      <div id="genome-tape" title="Tap to open Ledger"></div>
+    </div>
+
+    <div id="log"></div>
+
+    <div class="bottom">
+      <div class="hint" id="hint">
+        <b class="mono">Mobile:</b> Tap a track to steer. Swipe left/right anywhere to orbit camera. Pinch to zoom. Double‑tap canvas to toggle POV.
+      </div>
+      <div class="switcher" role="group" aria-label="Select Track">
+        <div class="track active" data-track="0" aria-label="C Care"><div style="text-align:center"><div class="big">C</div><div class="sub">CARE</div></div></div>
+        <div class="track" data-track="1" aria-label="G Growth"><div style="text-align:center"><div class="big">G</div><div class="sub">GROWTH</div></div></div>
+        <div class="track" data-track="2" aria-label="T Truth"><div style="text-align:center"><div class="big">T</div><div class="sub">TRUTH</div></div></div>
+        <div class="track" data-track="3" aria-label="A Action"><div style="text-align:center"><div class="big">A</div><div class="sub">ACTION</div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LEDGER MODAL -->
+  <div class="modal" id="modal-ledger" aria-hidden="true">
+    <div class="card">
+      <header>
+        <div class="title">
+          <b>Data Ledger</b>
+          <small>What happened, when, and why (localStorage persisted).</small>
+        </div>
+        <button class="xbtn" id="close-ledger">Close</button>
+      </header>
+      <div class="body">
+        <div class="grid2">
+          <div class="box">
+            <h3>Event Stream</h3>
+            <div id="ledger" class="ledger"></div>
+          </div>
+          <div class="box">
+            <h3>Sequence</h3>
+            <div class="mono" style="font-size:14px; word-break: break-word; line-height:1.45;" id="seq-string">—</div>
+            <div style="margin-top:10px; display:flex; gap:12px; flex-wrap:wrap;">
+              <div class="mono"><span class="dim">A</span>: <b id="ct-A">0</b></div>
+              <div class="mono"><span class="dim">C</span>: <b id="ct-C">0</b></div>
+              <div class="mono"><span class="dim">G</span>: <b id="ct-G">0</b></div>
+              <div class="mono"><span class="dim">T</span>: <b id="ct-T">0</b></div>
+            </div>
+            <div class="btnrow">
+              <button class="btn" id="btn-reset">Reset Run</button>
+              <button class="btn" id="btn-copy-json">Copy JSON</button>
+              <button class="btn" id="btn-download-json">Download JSON</button>
+            </div>
+            <div class="dim" style="font-size:11px; margin-top:10px; line-height:1.45;">
+              The ledger is the “dta”: decisions, collections, integrity changes, timestamps, and camera/track state. This is intentionally inspectable.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- EXPORT MODAL -->
+  <div class="modal" id="modal-export" aria-hidden="true">
+    <div class="card" style="max-width:760px;">
+      <header>
+        <div class="title">
+          <b>Export Ticket</b>
+          <small>Sequence summary + shareable receipt.</small>
+        </div>
+        <button class="xbtn" id="close-export">Close</button>
+      </header>
+      <div class="body">
+        <canvas id="ticket" style="width:100%; height:auto; border-radius:14px; border:1px solid rgba(255,255,255,0.14);"></canvas>
+        <div class="btnrow">
+          <button class="btn primary" id="btn-save-ticket">Download PNG</button>
+          <button class="btn" id="btn-open-ledger">Open Ledger</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOADER -->
+  <div id="loader"><div class="spinner"></div></div>
+
+<script>
+  /***********************
+   *  DNA Railway (Mobile+)
+   *  Goals:
+   *  - Touch-first controls (tap tracks, swipe orbit, pinch zoom)
+   *  - Clear "places" (four landmarks per ethic + stations)
+   *  - Track the dta (event ledger w/ timestamps + export JSON)
+   *  - Deterministic-ish collection (spawn ahead on multiple tracks)
+   ***********************/
+
+  const CONFIG = {
+    tracks: [
+      { radius: 15, color: 0x00f0ff, name: "CARE", letter: "C" },
+      { radius: 20, color: 0x00ff88, name: "GROWTH", letter: "G" },
+      { radius: 25, color: 0xffcc00, name: "TRUTH", letter: "T" },
+      { radius: 30, color: 0xff3355, name: "ACTION", letter: "A" }
+    ],
+    stationsPerTrack: 6,
+    baseSpawnRate: 0.9,          // spawns per second (distributed)
+    trainSpeed: 0.35,            // loops per minute baseline (converted)
+    maxEntities: 18,
+    collectDist: 1.7,
+    integrityFloor: 0,
+    integrityCeil: 100
+  };
+
+  const STORAGE_KEY = "dna_railway_mobile_plus_v1";
+
+  // Global state
+  const STATE = {
+    initialized: false,
+    currentTrack: 0,
+    progress: 0,                 // 0..1
+    speedMod: 1.0,
+    integrity: 100,
+    genome: [],
+    entities: [],
+    events: [],
+    // Smooth track switching
+    currentRadius: CONFIG.tracks[0].radius,
+    targetRadius: CONFIG.tracks[0].radius,
+    // Camera control
+    orbit: 0.52,                 // 0..1 mapped to angle offset
+    zoom: 1.0,                   // 0.7..1.8
+    pov: false,
+    // Station triggers (per lap)
+    stationHits: new Set(),
+    lap: 0
+  };
+
+  // THREE
+  let scene, camera, renderer;
+  let trainHead, trainGlow;
+  let trackLines = [];
+  let landmarks = [];
+  let lastT = 0;
+
+  // DOM
+  const elTape = document.getElementById("genome-tape");
+  const elLog = document.getElementById("log");
+  const elSeq = document.getElementById("kpi-seq");
+  const elInt = document.getElementById("kpi-int");
+  const elSpd = document.getElementById("kpi-spd");
+  const elEvents = document.getElementById("kpi-events");
+
+  const modalLedger = document.getElementById("modal-ledger");
+  const modalExport = document.getElementById("modal-export");
+
+  const ledgerBox = document.getElementById("ledger");
+  const seqString = document.getElementById("seq-string");
+  const ctA = document.getElementById("ct-A");
+  const ctC = document.getElementById("ct-C");
+  const ctG = document.getElementById("ct-G");
+  const ctT = document.getElementById("ct-T");
+
+  // ----- Utilities -----
+  function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+  function nowISO() { return new Date().toISOString(); }
+
+  function haptic(ms=10) {
+    try { if (navigator.vibrate) navigator.vibrate(ms); } catch(_) {}
+  }
+
+  function log(msg, tone="") {
+    const el = document.createElement("div");
+    el.className = "msg";
+    if (tone) el.style.borderLeftColor = tone;
+    el.textContent = `> ${msg}`;
+    elLog.prepend(el);
+    if (elLog.children.length > 7) elLog.lastChild.remove();
+  }
+
+  function pushEvent(kind, data={}) {
+    const e = {
+      t: Date.now(),
+      iso: nowISO(),
+      kind,
+      track: STATE.currentTrack,
+      progress: +STATE.progress.toFixed(4),
+      radius: +STATE.currentRadius.toFixed(2),
+      integrity: Math.round(STATE.integrity),
+      speed: +STATE.speedMod.toFixed(3),
+      genomeLen: STATE.genome.length,
+      ...data
+    };
+    STATE.events.unshift(e);
+    if (STATE.events.length > 200) STATE.events.pop();
+    persist();
+    elEvents.textContent = String(STATE.events.length);
+    // Update ledger UI lazily (only if open)
+    if (modalLedger.style.display === "flex") renderLedger();
+  }
+
+  function persist() {
+    try {
+      const payload = {
+        v: 1,
+        integrity: STATE.integrity,
+        speedMod: STATE.speedMod,
+        currentTrack: STATE.currentTrack,
+        progress: STATE.progress,
+        orbit: STATE.orbit,
+        zoom: STATE.zoom,
+        pov: STATE.pov,
+        genome: STATE.genome,
+        events: STATE.events
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    } catch(_) {}
+  }
+
+  function hydrate() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      const p = JSON.parse(raw);
+      if (!p || p.v !== 1) return;
+      STATE.integrity = clamp(p.integrity ?? 100, 0, 100);
+      STATE.speedMod = clamp(p.speedMod ?? 1.0, 0.7, 2.2);
+      STATE.currentTrack = clamp(p.currentTrack ?? 0, 0, 3);
+      STATE.progress = ((p.progress ?? 0) % 1 + 1) % 1;
+      STATE.orbit = clamp(p.orbit ?? 0.52, 0, 1);
+      STATE.zoom = clamp(p.zoom ?? 1.0, 0.7, 1.8);
+      STATE.pov = !!p.pov;
+      STATE.genome = Array.isArray(p.genome) ? p.genome.slice(0, 200) : [];
+      STATE.events = Array.isArray(p.events) ? p.events.slice(0, 200) : [];
+    } catch(_) {}
+  }
+
+  function seqCounts() {
+    const counts = {A:0,C:0,G:0,T:0};
+    for (const b of STATE.genome) if (counts[b] !== undefined) counts[b]++;
+    return counts;
+  }
+
+  // ----- 3D label sprites (no external libs) -----
+  function makeLabelSprite(text, color="#ffffff", scale=1.0) {
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    const pad = 14;
+    ctx.font = `800 ${Math.round(34*scale)}px ${getComputedStyle(document.body).fontFamily}`;
+    const w = Math.ceil(ctx.measureText(text).width) + pad*2;
+    const h = Math.ceil(46*scale) + pad;
+    canvas.width = w;
+    canvas.height = h;
+
+    // background
+    ctx.fillStyle = "rgba(0,0,0,0.55)";
+    roundRect(ctx, 0, 0, w, h, 18*scale);
+    ctx.fill();
+
+    // stroke
+    ctx.strokeStyle = "rgba(255,255,255,0.18)";
+    ctx.lineWidth = 3;
+    roundRect(ctx, 0, 0, w, h, 18*scale);
+    ctx.stroke();
+
+    // text
+    ctx.fillStyle = color;
+    ctx.textBaseline = "middle";
+    ctx.textAlign = "center";
+    ctx.font = `900 ${Math.round(30*scale)}px ui-monospace, Menlo, monospace`;
+    ctx.fillText(text, w/2, h/2);
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.minFilter = THREE.LinearFilter;
+    tex.magFilter = THREE.LinearFilter;
+
+    const mat = new THREE.SpriteMaterial({ map: tex, transparent: true });
+    const sprite = new THREE.Sprite(mat);
+    sprite.scale.set((w/80), (h/80), 1);
+    return sprite;
+  }
+
+  function roundRect(ctx, x, y, w, h, r) {
+    const rr = Math.min(r, w/2, h/2);
+    ctx.beginPath();
+    ctx.moveTo(x+rr, y);
+    ctx.arcTo(x+w, y, x+w, y+h, rr);
+    ctx.arcTo(x+w, y+h, x, y+h, rr);
+    ctx.arcTo(x, y+h, x, y, rr);
+    ctx.arcTo(x, y, x+w, y, rr);
+    ctx.closePath();
+  }
+
+  // ----- World build -----
+  function initThree() {
+    const container = document.getElementById("canvas-container");
+
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x020406);
+    scene.fog = new THREE.FogExp2(0x020406, 0.018);
+
+    camera = new THREE.PerspectiveCamera(62, window.innerWidth/window.innerHeight, 0.1, 1200);
+
+    renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+    container.appendChild(renderer.domElement);
+
+    // Lights
+    scene.add(new THREE.AmbientLight(0x2b3a44, 1.35));
+    const dir = new THREE.DirectionalLight(0xffffff, 0.85);
+    dir.position.set(30, 60, 20);
+    scene.add(dir);
+
+    // floor haze grid (simple)
+    const floor = new THREE.Mesh(
+      new THREE.CircleGeometry(58, 64),
+      new THREE.MeshBasicMaterial({ color: 0x050a0f, transparent: true, opacity: 0.85 })
+    );
+    floor.rotation.x = -Math.PI/2;
+    floor.position.y = -2.2;
+    scene.add(floor);
+
+    // Tracks + stations + landmarks
+    createTracksAndStations();
+    createLandmarks();
+    createTrain();
+
+    // Events
+    window.addEventListener("resize", onResize);
+
+    // Canvas gestures (swipe orbit + pinch zoom + double-tap POV)
+    bindGestures(renderer.domElement);
+  }
+
+  function createTracksAndStations() {
+    trackLines = [];
+
+    CONFIG.tracks.forEach((t, idx) => {
+      // track line
+      const curve = new THREE.EllipseCurve(0, 0, t.radius, t.radius, 0, Math.PI*2, false, 0);
+      const pts = curve.getPoints(220).map(p => new THREE.Vector3(p.x, 0, p.y));
+      const geo = new THREE.BufferGeometry().setFromPoints(pts);
+      const mat = new THREE.LineBasicMaterial({ color: t.color, transparent: true, opacity: 0.55 });
+      const line = new THREE.Line(geo, mat);
+      scene.add(line);
+      trackLines.push(line);
+
+      // stations
+      const stationGeo = new THREE.TorusGeometry(0.9, 0.16, 10, 16);
+      const stationMat = new THREE.MeshBasicMaterial({ color: t.color, transparent: true, opacity: 0.9 });
+      const n = CONFIG.stationsPerTrack;
+      for (let j=0; j<n; j++) {
+        const a = (j/n) * Math.PI*2;
+        const x = Math.cos(a) * t.radius;
+        const z = Math.sin(a) * t.radius;
+        const ring = new THREE.Mesh(stationGeo, stationMat);
+        ring.position.set(x, 0.05, z);
+        ring.rotation.x = Math.PI/2;
+        ring.userData = { trackIdx: idx, stationIdx: j, kind: "station" };
+        scene.add(ring);
+
+        // station label (small)
+        if (j % 2 === 0) {
+          const s = makeLabelSprite(`${t.letter}-${j+1}`, "rgba(255,255,255,0.92)", 0.72);
+          s.position.set(x, 2.6, z);
+          scene.add(s);
+        }
+      }
+    });
+  }
+
+  function createLandmarks() {
+    landmarks = [];
+    const specs = [
+      { idx:0, name:"CARE CLINIC", color:"#00f0ff", pos:[-36, 0, -18] },
+      { idx:1, name:"GROWTH LAB", color:"#00ff88", pos:[ 34, 0, -18] },
+      { idx:2, name:"TRUTH ARCHIVE", color:"#ffcc00", pos:[ 34, 0,  22] },
+      { idx:3, name:"ACTION DOCK", color:"#ff3355", pos:[-36, 0,  22] }
+    ];
+
+    for (const s of specs) {
+      const t = CONFIG.tracks[s.idx];
+      // pedestal
+      const base = new THREE.Mesh(
+        new THREE.CylinderGeometry(3.2, 3.8, 1.0, 16),
+        new THREE.MeshPhongMaterial({ color: 0x0c1016, shininess: 30, transparent: true, opacity: 0.95 })
+      );
+      base.position.set(s.pos[0], -1.8, s.pos[2]);
+      scene.add(base);
+
+      // tower
+      const tower = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.7, 1.6, 9.5, 10),
+        new THREE.MeshPhongMaterial({ color: t.color, emissive: t.color, emissiveIntensity: 0.2, shininess: 60 })
+      );
+      tower.position.set(s.pos[0], 2.3, s.pos[2]);
+      scene.add(tower);
+
+      // aura light
+      const pl = new THREE.PointLight(t.color, 1.5, 50);
+      pl.position.set(s.pos[0], 4.5, s.pos[2]);
+      scene.add(pl);
+
+      // label
+      const label = makeLabelSprite(s.name, s.color, 0.9);
+      label.position.set(s.pos[0], 8.0, s.pos[2]);
+      scene.add(label);
+
+      landmarks.push({ base, tower, label, pl });
+    }
+
+    // subtle "rails" spokes to imply place
+    const spokeMat = new THREE.LineBasicMaterial({ color: 0x223344, transparent: true, opacity: 0.45 });
+    for (let k=0; k<16; k++) {
+      const a = (k/16) * Math.PI*2;
+      const pts = [
+        new THREE.Vector3(Math.cos(a)*10, -0.2, Math.sin(a)*10),
+        new THREE.Vector3(Math.cos(a)*54, -0.2, Math.sin(a)*54)
+      ];
+      const geo = new THREE.BufferGeometry().setFromPoints(pts);
+      const line = new THREE.Line(geo, spokeMat);
+      scene.add(line);
+    }
+  }
+
+  function createTrain() {
+    const headGeo = new THREE.SphereGeometry(1.2, 18, 18);
+    const headMat = new THREE.MeshPhongMaterial({ color: 0xffffff, emissive: 0x39414a, emissiveIntensity: 0.35, shininess: 100 });
+    trainHead = new THREE.Mesh(headGeo, headMat);
+
+    const glowGeo = new THREE.SphereGeometry(1.7, 14, 14);
+    const glowMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.08 });
+    trainGlow = new THREE.Mesh(glowGeo, glowMat);
+    trainHead.add(trainGlow);
+
+    const light = new THREE.PointLight(0xffffff, 1.7, 70);
+    light.position.set(0, 0, 0);
+    trainHead.add(light);
+
+    scene.add(trainHead);
+
+    // start position (hydrate track radius)
+    STATE.currentRadius = CONFIG.tracks[STATE.currentTrack].radius;
+    STATE.targetRadius = STATE.currentRadius;
+  }
+
+  // ----- Entities (bases) -----
+  function spawnBase(trackIdx, ahead=0.18) {
+    if (STATE.entities.length >= CONFIG.maxEntities) return;
+
+    const t = CONFIG.tracks[trackIdx];
+    const angle = ((STATE.progress + ahead + Math.random()*0.14) % 1) * Math.PI*2;
+
+    const geo = new THREE.OctahedronGeometry(0.72);
+    const mat = new THREE.MeshPhongMaterial({
+      color: t.color,
+      emissive: t.color,
+      emissiveIntensity: 0.35,
+      shininess: 80
+    });
+
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.userData = {
+      type: t.letter,
+      trackIdx,
+      angle,
+      born: performance.now()
+    };
+
+    mesh.position.set(Math.cos(angle)*t.radius, 1.0, Math.sin(angle)*t.radius);
+    scene.add(mesh);
+    STATE.entities.push(mesh);
+  }
+
+  function maybeSpawn(dt) {
+    // Spread spawns across tracks so steering matters
+    const rate = CONFIG.baseSpawnRate;
+    const expected = rate * dt;
+    if (Math.random() < expected) {
+      const r = Math.random();
+      const trackIdx = (r < 0.48) ? STATE.currentTrack : Math.floor(Math.random()*4);
+      spawnBase(trackIdx, 0.22);
+    }
+  }
+
+  function collectBase(mesh, idx) {
+    const b = mesh.userData.type;
+
+    // outcome: genome + speed + small integrity drift
+    STATE.genome.push(b);
+    STATE.speedMod = clamp(STATE.speedMod + 0.035, 0.7, 2.2);
+
+    // integrity: collecting off-policy types can cost more
+    const onTrack = (mesh.userData.trackIdx === STATE.currentTrack);
+    const delta = onTrack ? +0.5 : -1.5;
+    STATE.integrity = clamp(STATE.integrity + delta, CONFIG.integrityFloor, CONFIG.integrityCeil);
+
+    // visuals
+    haptic(12);
+    log(`Collected ${b} • ${CONFIG.tracks[mesh.userData.trackIdx].name}${onTrack ? "" : " (off‑track)"}`, trackColorHex(mesh.userData.trackIdx));
+
+    // dta
+    pushEvent("collect", {
+      base: b,
+      baseTrack: mesh.userData.trackIdx,
+      deltaIntegrity: +delta.toFixed(2)
+    });
+
+    // remove
+    scene.remove(mesh);
+    STATE.entities.splice(idx, 1);
+
+    // HUD update
+    syncHUD();
+  }
+
+  function trackColorHex(trackIdx) {
+    const hex = CONFIG.tracks[trackIdx].color.toString(16).padStart(6, "0");
+    return `#${hex}`;
+  }
+
+  function checkCollisions() {
+    if (!trainHead) return;
+    const tp = trainHead.position;
+
+    for (let i = STATE.entities.length - 1; i >= 0; i--) {
+      const e = STATE.entities[i];
+      const d = tp.distanceTo(e.position);
+      if (d < CONFIG.collectDist) {
+        collectBase(e, i);
+      }
+    }
+  }
+
+  // ----- Stations as "clear examples" triggers -----
+  const EXAMPLES = {
+    C: [
+      { title: "CARE CLINIC", text: "A vulnerable passenger requests help, slowing the train.", deltaInt: +2.0, deltaSpd: -0.08 },
+      { title: "CARE CLINIC", text: "You choose to prioritize accessibility: add ramps to all stations.", deltaInt: +1.5, deltaSpd: -0.04 }
+    ],
+    G: [
+      { title: "GROWTH LAB", text: "A mutation increases capacity: more bases spawn ahead.", deltaInt: -1.0, deltaSpd: +0.06 },
+      { title: "GROWTH LAB", text: "You invest in mentorship: slower now, stronger later.", deltaInt: +1.0, deltaSpd: -0.03 }
+    ],
+    T: [
+      { title: "TRUTH ARCHIVE", text: "A missing record appears. You annotate the ledger with provenance.", deltaInt: +1.2, deltaSpd: -0.01 },
+      { title: "TRUTH ARCHIVE", text: "You reject a convenient lie; the route gets harder.", deltaInt: +2.0, deltaSpd: -0.05 }
+    ],
+    A: [
+      { title: "ACTION DOCK", text: "A crisis demands action: you boost speed to intercept a threat.", deltaInt: -2.0, deltaSpd: +0.10 },
+      { title: "ACTION DOCK", text: "You mobilize a response team: moderate speed, higher integrity.", deltaInt: +0.6, deltaSpd: +0.02 }
+    ]
+  };
+
+  function stationKey(trackIdx, stationIdx, lap) {
+    return `${lap}:${trackIdx}:${stationIdx}`;
+  }
+
+  function checkStations() {
+    // When the train passes near a station on its current track, trigger a small "example" event
+    const tIdx = STATE.currentTrack;
+    const t = CONFIG.tracks[tIdx];
+
+    // closest station index based on progress
+    const n = CONFIG.stationsPerTrack;
+    const stationFloat = STATE.progress * n;
+    const stationIdx = Math.floor(stationFloat) % n;
+
+    // trigger window around station midpoint
+    const frac = stationFloat - Math.floor(stationFloat);
+    if (frac < 0.48 || frac > 0.56) return;
+
+    const key = stationKey(tIdx, stationIdx, STATE.lap);
+    if (STATE.stationHits.has(key)) return;
+    STATE.stationHits.add(key);
+
+    const letter = t.letter;
+    const list = EXAMPLES[letter];
+    const ex = list[(STATE.events.length + stationIdx) % list.length];
+
+    // apply
+    const dI = ex.deltaInt;
+    const dS = ex.deltaSpd;
+    STATE.integrity = clamp(STATE.integrity + dI, 0, 100);
+    STATE.speedMod = clamp(STATE.speedMod + dS, 0.7, 2.2);
+
+    log(`${ex.title}: ${ex.text}`, trackColorHex(tIdx));
+    pushEvent("example", {
+      station: stationIdx + 1,
+      title: ex.title,
+      text: ex.text,
+      deltaIntegrity: +dI.toFixed(2),
+      deltaSpeed: +dS.toFixed(2)
+    });
+
+    syncHUD();
+  }
+
+  // ----- Motion + camera -----
+  function update(dt) {
+    // dt seconds
+    const loopsPerSec = (CONFIG.trainSpeed / 60) * STATE.speedMod;
+    STATE.progress += loopsPerSec * dt;
+
+    if (STATE.progress >= 1) {
+      STATE.progress -= 1;
+      STATE.lap += 1;
+      // keep station hits bounded
+      if (STATE.stationHits.size > 120) STATE.stationHits.clear();
+      pushEvent("lap", { lap: STATE.lap });
+      log(`Lap ${STATE.lap} complete.`, "rgba(255,255,255,0.45)");
+    }
+
+    // Smooth radial switching
+    STATE.currentRadius += (STATE.targetRadius - STATE.currentRadius) * clamp(dt * 6.0, 0, 1);
+
+    // Train position
+    const a = STATE.progress * Math.PI*2;
+    trainHead.position.set(Math.cos(a) * STATE.currentRadius, 0.9, Math.sin(a) * STATE.currentRadius);
+    trainHead.lookAt(Math.cos(a + 0.08) * STATE.currentRadius, 0.9, Math.sin(a + 0.08) * STATE.currentRadius);
+
+    // Entities bob
+    const t = performance.now();
+    for (const e of STATE.entities) {
+      e.rotation.y += dt * 1.3;
+      e.position.y = 1.0 + Math.sin((t - e.userData.born) * 0.004) * 0.45;
+    }
+
+    // Camera
+    updateCamera(a);
+
+    // Spawns + interactions
+    maybeSpawn(dt);
+    checkCollisions();
+    checkStations();
+
+    // tape UI is cheap but avoid updating each frame: update on threshold
+    if ((STATE.genome.length % 2) === 0 && (performance.now() % 500) < 17) syncTape();
+  }
+
+  function updateCamera(angle) {
+    const base = STATE.currentRadius;
+
+    if (STATE.pov) {
+      // POV: ride the train
+      const forward = new THREE.Vector3(Math.cos(angle + 0.08), 0, Math.sin(angle + 0.08));
+      const right = new THREE.Vector3(-Math.sin(angle), 0, Math.cos(angle));
+      const pos = trainHead.position.clone()
+        .add(right.multiplyScalar(2.0))
+        .add(new THREE.Vector3(0, 1.8, 0))
+        .add(forward.multiplyScalar(-2.2));
+      camera.position.copy(pos);
+      camera.lookAt(trainHead.position.clone().add(forward.multiplyScalar(7.0)).add(new THREE.Vector3(0, 1.0, 0)));
+      return;
+    }
+
+    // Orbit camera
+    const orbitA = angle - (STATE.orbit * 1.6 + 0.4);
+    const camRadius = (base + 28) * STATE.zoom;
+    camera.position.set(
+      Math.cos(orbitA) * camRadius,
+      18 * STATE.zoom + 10,
+      Math.sin(orbitA) * camRadius
+    );
+    camera.lookAt(trainHead.position.clone().add(new THREE.Vector3(0, 2.0, 0)));
+  }
+
+  function animate(t) {
+    if (!STATE.initialized) return;
+    requestAnimationFrame(animate);
+
+    const dt = lastT ? Math.min(0.05, (t - lastT) / 1000) : 0.016;
+    lastT = t;
+
+    update(dt);
+    renderer.render(scene, camera);
+  }
+
+  function onResize() {
+    if (!camera || !renderer) return;
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+  }
+
+  // ----- UI sync -----
+  function syncHUD() {
+    elSeq.textContent = `${STATE.genome.length} BP`;
+    elInt.textContent = `${Math.round(STATE.integrity)}%`;
+    elSpd.textContent = `${STATE.speedMod.toFixed(2)}×`;
+  }
+
+  function syncTape() {
+    // Render last N bases into the tape for clarity.
+    const max = 120;
+    const tail = STATE.genome.slice(-max);
+    elTape.innerHTML = "";
+    if (tail.length === 0) {
+      const ghost = document.createElement("div");
+      ghost.style.flex = "1";
+      ghost.style.display = "grid";
+      ghost.style.placeItems = "center";
+      ghost.style.color = "rgba(255,255,255,0.25)";
+      ghost.style.fontSize = "11px";
+      ghost.textContent = "Tap tracks to steer • Collect bases to build a sequence";
+      elTape.appendChild(ghost);
+      return;
+    }
+    for (const b of tail) {
+      const d = document.createElement("div");
+      d.className = `bp ${b}`;
+      elTape.appendChild(d);
+    }
+  }
+
+  function renderLedger() {
+    // Event list
+    ledgerBox.innerHTML = "";
+    const events = STATE.events.slice(0, 60);
+    if (events.length === 0) {
+      const p = document.createElement("div");
+      p.className = "dim";
+      p.style.fontSize = "12px";
+      p.textContent = "No events yet. Collect bases or switch tracks.";
+      ledgerBox.appendChild(p);
+    }
+
+    for (const e of events) {
+      const row = document.createElement("div");
+      row.className = "event";
+
+      const t = document.createElement("div");
+      t.className = "t";
+      t.textContent = new Date(e.t).toLocaleTimeString([], {hour:"2-digit", minute:"2-digit", second:"2-digit"});
+
+      const k = document.createElement("div");
+      k.className = "k";
+      k.textContent = e.kind;
+      k.style.color = trackColorHex(e.track ?? 0);
+
+      const d = document.createElement("div");
+      d.className = "d";
+      d.textContent = describeEvent(e);
+
+      row.appendChild(t);
+      row.appendChild(k);
+      row.appendChild(d);
+      ledgerBox.appendChild(row);
+    }
+
+    // Sequence
+    const seq = STATE.genome.join("");
+    seqString.textContent = seq.length ? seq : "—";
+    const c = seqCounts();
+    ctA.textContent = c.A;
+    ctC.textContent = c.C;
+    ctG.textContent = c.G;
+    ctT.textContent = c.T;
+  }
+
+  function describeEvent(e) {
+    if (e.kind === "track") return `Switched to ${CONFIG.tracks[e.to].name} (target radius ${CONFIG.tracks[e.to].radius})`;
+    if (e.kind === "collect") return `+${e.base} from ${CONFIG.tracks[e.baseTrack].name} • integrity ${signed(e.deltaIntegrity)}`;
+    if (e.kind === "example") return `Station ${e.station}: ${e.text} • integrity ${signed(e.deltaIntegrity)} • speed ${signed(e.deltaSpeed)}`;
+    if (e.kind === "lap") return `Lap ${e.lap} complete`;
+    if (e.kind === "reset") return `Run reset`;
+    return JSON.stringify(e);
+  }
+
+  function signed(x) {
+    const n = Number(x);
+    if (!isFinite(n)) return String(x);
+    return (n >= 0 ? "+" : "") + n.toFixed(2);
+  }
+
+  // ----- Controls -----
+  function setActiveTrack(trackIdx) {
+    const idx = clamp(trackIdx, 0, 3);
+    if (idx === STATE.currentTrack) return;
+
+    STATE.currentTrack = idx;
+    STATE.targetRadius = CONFIG.tracks[idx].radius;
+
+    // UI highlight
+    document.querySelectorAll(".track").forEach(b => b.classList.remove("active"));
+    document.querySelector(`.track[data-track=\"${idx}\"]`)?.classList.add("active");
+
+    // feedback
+    haptic(18);
+    log(`Steer → ${CONFIG.tracks[idx].name}`, trackColorHex(idx));
+    pushEvent("track", { to: idx });
+    persist();
+  }
+
+  function bindTrackButtons() {
+    document.querySelectorAll(".track").forEach(btn => {
+      btn.addEventListener("pointerdown", (e) => {
+        e.preventDefault();
+        setActiveTrack(parseInt(btn.dataset.track, 10));
+      }, { passive: false });
+    });
+  }
+
+  function openLedger() {
+    modalLedger.style.display = "flex";
+    modalLedger.setAttribute("aria-hidden", "false");
+    renderLedger();
+  }
+
+  function closeLedger() {
+    modalLedger.style.display = "none";
+    modalLedger.setAttribute("aria-hidden", "true");
+  }
+
+  function openExport() {
+    modalExport.style.display = "flex";
+    modalExport.setAttribute("aria-hidden", "false");
+    drawTicket();
+  }
+
+  function closeExport() {
+    modalExport.style.display = "none";
+    modalExport.setAttribute("aria-hidden", "true");
+  }
+
+  function bindModals() {
+    document.getElementById("btn-ledger").addEventListener("pointerdown", (e) => { e.preventDefault(); openLedger(); }, { passive:false });
+    document.getElementById("btn-export").addEventListener("pointerdown", (e) => { e.preventDefault(); openExport(); }, { passive:false });
+    elTape.addEventListener("pointerdown", (e) => { e.preventDefault(); openLedger(); }, { passive:false });
+
+    document.getElementById("close-ledger").addEventListener("click", closeLedger);
+    document.getElementById("close-export").addEventListener("click", closeExport);
+    document.getElementById("btn-open-ledger").addEventListener("click", () => { closeExport(); openLedger(); });
+
+    // Close by clicking backdrop
+    modalLedger.addEventListener("pointerdown", (e) => { if (e.target === modalLedger) closeLedger(); });
+    modalExport.addEventListener("pointerdown", (e) => { if (e.target === modalExport) closeExport(); });
+
+    // Reset
+    document.getElementById("btn-reset").addEventListener("click", () => {
+      resetRun();
+      renderLedger();
+    });
+
+    // Copy/Download JSON
+    document.getElementById("btn-copy-json").addEventListener("click", async () => {
+      const json = exportJSON();
+      try { await navigator.clipboard.writeText(json); log("Copied JSON to clipboard."); } catch(_) { log("Copy failed (clipboard blocked). Use Download JSON."); }
+    });
+
+    document.getElementById("btn-download-json").addEventListener("click", () => {
+      const json = exportJSON();
+      download("dna_railway_ledger.json", json, "application/json");
+      log("Downloaded JSON.");
+    });
+
+    document.getElementById("btn-save-ticket").addEventListener("click", () => {
+      const c = document.getElementById("ticket");
+      const url = c.toDataURL("image/png");
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `ethnome_ticket_${STATE.genome.length}bp.png`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      log("Downloaded ticket PNG.");
+    });
+  }
+
+  function resetRun() {
+    // clear scene entities
+    for (const e of STATE.entities) scene.remove(e);
+    STATE.entities = [];
+
+    STATE.genome = [];
+    STATE.integrity = 100;
+    STATE.speedMod = 1.0;
+    STATE.progress = 0;
+    STATE.lap = 0;
+    STATE.stationHits.clear();
+
+    pushEvent("reset", {});
+    syncHUD();
+    syncTape();
+    log("Run reset. System fresh.");
+    persist();
+  }
+
+  function exportJSON() {
+    const payload = {
+      meta: {
+        app: "DNA Railway: Cas9 Simulator (Mobile+)",
+        version: 1,
+        exportedAt: nowISO()
+      },
+      state: {
+        integrity: STATE.integrity,
+        speedMod: STATE.speedMod,
+        currentTrack: STATE.currentTrack,
+        orbit: STATE.orbit,
+        zoom: STATE.zoom,
+        pov: STATE.pov,
+        genomeLength: STATE.genome.length
+      },
+      genome: STATE.genome,
+      events: STATE.events
+    };
+    return JSON.stringify(payload, null, 2);
+  }
+
+  function download(name, content, type) {
+    const blob = new Blob([content], { type });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 600);
+  }
+
+  // ----- Ticket drawing -----
+  function drawTicket() {
+    const canvas = document.getElementById("ticket");
+    const ctx = canvas.getContext("2d");
+
+    // high-DPI
+    const w = 1200;
+    const h = 520;
+    canvas.width = w;
+    canvas.height = h;
+
+    ctx.fillStyle = "#0a0c10";
+    ctx.fillRect(0, 0, w, h);
+
+    // header
+    ctx.fillStyle = "rgba(255,255,255,0.92)";
+    ctx.font = "900 42px ui-monospace, Menlo, monospace";
+    ctx.fillText("ETHNOME TICKET", 44, 72);
+
+    ctx.fillStyle = "rgba(255,255,255,0.55)";
+    ctx.font = "700 20px ui-monospace, Menlo, monospace";
+    ctx.fillText(`LEN ${STATE.genome.length} BP  •  INT ${Math.round(STATE.integrity)}%  •  SPD ${STATE.speedMod.toFixed(2)}×`, 46, 110);
+
+    ctx.fillStyle = "rgba(255,255,255,0.35)";
+    ctx.font = "700 18px ui-monospace, Menlo, monospace";
+    ctx.fillText(`Exported ${new Date().toLocaleString()}`, 46, 138);
+
+    // sequence bars
+    const colors = { A: "#ff3355", C: "#00f0ff", G: "#00ff88", T: "#ffcc00" };
+    const seq = STATE.genome.slice(-240);
+    const barW = (w - 92) / Math.max(1, seq.length);
+
+    // frame
+    ctx.strokeStyle = "rgba(255,255,255,0.16)";
+    ctx.lineWidth = 2;
+    roundRect(ctx, 44, 180, w-88, 200, 18);
+    ctx.stroke();
+
+    for (let i=0; i<seq.length; i++) {
+      const b = seq[i];
+      ctx.fillStyle = colors[b] || "#555";
+      ctx.fillRect(46 + i*barW, 182, Math.max(1, barW-1), 196);
+    }
+
+    // summary
+    const c = seqCounts();
+    ctx.fillStyle = "rgba(255,255,255,0.85)";
+    ctx.font = "900 20px ui-monospace, Menlo, monospace";
+    ctx.fillText(`A:${c.A}  C:${c.C}  G:${c.G}  T:${c.T}`, 46, 440);
+
+    ctx.fillStyle = "rgba(255,255,255,0.55)";
+    ctx.font = "700 16px ui-monospace, Menlo, monospace";
+    ctx.fillText("Ledger contains full event history (dta) + timestamps.", 46, 472);
+  }
+
+  // ----- Gestures: orbit/pinch/double-tap -----
+  function bindGestures(dom) {
+    let pointers = new Map();
+    let lastTap = 0;
+    let startOrbit = STATE.orbit;
+    let startZoom = STATE.zoom;
+    let pinchDist0 = 0;
+
+    dom.style.touchAction = "none"; // allow pinch/drag
+
+    dom.addEventListener("pointerdown", (e) => {
+      dom.setPointerCapture(e.pointerId);
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+      // double-tap toggles POV
+      const t = performance.now();
+      if (t - lastTap < 280 && pointers.size === 1) {
+        STATE.pov = !STATE.pov;
+        haptic(14);
+        log(STATE.pov ? "POV mode ON" : "POV mode OFF");
+        pushEvent("pov", { pov: STATE.pov });
+        persist();
+      }
+      lastTap = t;
+
+      // init gesture refs
+      startOrbit = STATE.orbit;
+      startZoom = STATE.zoom;
+
+      if (pointers.size === 2) {
+        const pts = Array.from(pointers.values());
+        pinchDist0 = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+      }
+    }, { passive: true });
+
+    dom.addEventListener("pointermove", (e) => {
+      if (!pointers.has(e.pointerId)) return;
+
+      const prev = pointers.get(e.pointerId);
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+      if (pointers.size === 1) {
+        // swipe controls orbit
+        const dx = (e.clientX - prev.x) / Math.max(1, window.innerWidth);
+        STATE.orbit = clamp(startOrbit - dx * 1.35, 0, 1);
+      } else if (pointers.size === 2) {
+        // pinch zoom
+        const pts = Array.from(pointers.values());
+        const d = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+        if (pinchDist0 > 0) {
+          const ratio = d / pinchDist0;
+          STATE.zoom = clamp(startZoom / ratio, 0.7, 1.8);
+        }
+      }
+    }, { passive: true });
+
+    dom.addEventListener("pointerup", (e) => {
+      pointers.delete(e.pointerId);
+      if (pointers.size < 2) pinchDist0 = 0;
+      persist();
+    }, { passive: true });
+
+    dom.addEventListener("pointercancel", (e) => {
+      pointers.delete(e.pointerId);
+      if (pointers.size < 2) pinchDist0 = 0;
+      persist();
+    }, { passive: true });
+  }
+
+  // ----- Boot -----
+  function boot() {
+    hydrate();
+
+    initThree();
+    bindTrackButtons();
+    bindModals();
+
+    // highlight hydrated track
+    document.querySelectorAll(".track").forEach(b => b.classList.remove("active"));
+    document.querySelector(`.track[data-track=\"${STATE.currentTrack}\"]`)?.classList.add("active");
+
+    STATE.currentRadius = CONFIG.tracks[STATE.currentTrack].radius;
+    STATE.targetRadius = STATE.currentRadius;
+
+    syncHUD();
+    syncTape();
+    elEvents.textContent = String(STATE.events.length);
+
+    // starter logs
+    log("System Online. Cas9 Train ready.");
+    log("Steer via buttons; collect bases; inspect ledger to see the dta.");
+    pushEvent("boot", { ua: navigator.userAgent.slice(0, 90) });
+
+    // start
+    STATE.initialized = true;
+    document.getElementById("loader").style.display = "none";
+    requestAnimationFrame(animate);
+  }
+
+  window.addEventListener("load", () => {
+    // Give layout a beat to settle on mobile
+    setTimeout(boot, 60);
+  });
+</script>
+
+</body>
+</html>
